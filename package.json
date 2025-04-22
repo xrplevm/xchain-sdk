@@ -45,5 +45,8 @@
         "ts-node": "10.9.2",
         "typescript": "5.8.3"
     },
-    "packageManager": "pnpm@9.7.0"
+    "packageManager": "pnpm@9.7.0",
+    "dependencies": {
+        "xrpl": "4.0.0"
+    }
 }
