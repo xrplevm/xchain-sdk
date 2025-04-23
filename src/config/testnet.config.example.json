@@ -1,0 +1,50 @@
+{
+    "evmChain": {
+        "id": "xrpl-evm",
+        "name": "xrpl-evm",
+        "chainId": 1449000,
+        "env": "testnet",
+        "type": "evm",
+        "symbol": "XRP",
+        "nativeToken": {
+            "id": "",
+            "symbol": "XRP",
+            "decimals": 18,
+            "name": "XRP",
+            "address": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+        },
+        "contractAddresses": {
+            "axelarGatewayAddress": "0xe432150cce91c13a887f7D836923d5597adD8E31",
+            "interchainTokenFactory": "0x83a93500d23Fbc3e82B410aD07A6a9F7A0670D66",
+            "interchainTokenServiceAddress": "0xB5FB4BE02232B1bBA4dC8f81dc24C26980dE9e3C",
+            "interchainTokenDeployedAddress": "0xb66d931bC569D60dA5d9852Ea0c1ed0484B72677",
+            "axelarGasServiceAddress": "0xbE406F0189A0B4cf3A05C286473D23791Dd44Cc6",
+            "callContractAddress": "0xbd753c4bec615d7840698a0d2bdd3d62241afdfa"
+        },
+        "metadata": {
+            "saltTokenFactory": "ITS v2.1.0"
+        },
+        "urls": {
+            "rpc": "https://rpc.testnet.xrplevm.org"
+        }
+    },
+    "xrplChain": {
+        "name": "XRPL",
+        "chainId": 100,
+        "id": "xrpl",
+        "env": "testnet",
+        "type": "xrp",
+        "contractAddresses": {
+            "axelarGatewayAddress": "rNrjh1KGZk2jBR3wPfAQnoidtFFYQKbQn2",
+            "interchainTokenServiceAddress": "rNrjh1KGZk2jBR3wPfAQnoidtFFYQKbQn2"
+        },
+        "metadata": {
+            "tokenId": "0xba5a21ca88ef6bba2bfff5088994f90e1077e2a1cc3dcc38bd261f00fce2824f",
+            "saltTokenFactory": "ITS Factory v1.0.0 consensus devnet-amplifier2"
+        },
+        "urls": {
+            "rpc": "https://s.altnet.rippletest.net:51234",
+            "ws": "wss://s.altnet.rippletest.net:51233"
+        }
+    }
+}

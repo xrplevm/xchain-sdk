@@ -21,6 +21,10 @@ logs
 .env*
 !.env.example
 
+# Config 
+*.config.json
+!*.config.example.json
+
 # Tests
 coverage
 
