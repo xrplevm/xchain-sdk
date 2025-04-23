@@ -21,7 +21,9 @@ export class Bridge {
     }
 
     /**
-     * Factory: builds resources and returns a configured Bridge.
+     * Constructs a Bridge instance from a BridgeConfig.
+     * @param cfg The bridge configuration.
+     * @returns A configured Bridge instance.
      */
     public static fromConfig(cfg: BridgeConfig): Bridge {
         let xrpl: XrplResource;
@@ -33,7 +35,13 @@ export class Bridge {
         return new Bridge(cfg.network, xrpl, evm);
     }
 
-    private static constructEvmResources(rpcUrl: string, evmKey?: string, _isSource = true): EvmResource {
+    /**
+     * Construct EVM resources from RPC URL and optional private key.
+     * @param rpcUrl The EVM RPC URL.
+     * @param evmKey The EVM private key (optional).
+     * @returns The constructed EvmResource.
+     */
+    private static constructEvmResources(rpcUrl: string, evmKey?: string): EvmResource {
         const provider = new ethers.JsonRpcProvider(rpcUrl);
         let signer: ethers.Wallet | undefined;
         if (evmKey) {
@@ -42,7 +50,13 @@ export class Bridge {
         return { type: "xrpl-evm", provider, signer };
     }
 
-    private static constructXrplResources(rpcUrl: string, xrplSeed?: string, _isSource = true): XrplResource {
+    /**
+     * Construct XRPL resources from RPC URL and optional seed.
+     * @param rpcUrl The XRPL RPC URL.
+     * @param xrplSeed The XRPL seed (optional).
+     * @returns The constructed XrplResource.
+     */
+    private static constructXrplResources(rpcUrl: string, xrplSeed?: string): XrplResource {
         if (!rpcUrl) {
             throw new ProviderError(BridgeErrors.NO_RPC_FOR_XRPL_SOURCE);
         }
@@ -60,6 +74,11 @@ export class Bridge {
 
     /**
      * Transfer assets between XRPL and XRPL-EVM.
+     * @param from The source chain type.
+     * @param to The destination chain type.
+     * @param asset The asset to transfer.
+     * @param amount The amount to transfer.
+     * @returns A promise that resolves when the transfer is complete.
      */
     public async transfer(from: ChainType, to: ChainType, asset: BridgeAsset, amount: number): Promise<void> {
         // Example logic, you should implement the actual transfer logic here
