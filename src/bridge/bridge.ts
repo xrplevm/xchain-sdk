@@ -1,4 +1,4 @@
-import { ethers } from "ethers";
+import { Contract, ethers } from "ethers";
 import { Client as XrplClient, Wallet as XrplWallet } from "xrpl";
 import type { NetworkType } from "../types/network";
 import { BridgeErrors } from "../errors/bridge.errors";
@@ -8,6 +8,9 @@ import { XrplErrors } from "../errors/xrpl.errors";
 import type { BridgeAsset } from "../types/bridge";
 import type { XrplResource, EvmResource, ChainType } from "../types/chain";
 import type { BridgeConfig } from "../interfaces";
+import { interchainTokenServiceAbi } from "./contracts";
+import { EvmAsset, XrpAsset, XrplIssuedAsset } from "../interfaces/assets";
+import { EvmError, EvmErrors } from "../errors";
 
 export class Bridge {
     private network: NetworkType;
@@ -25,7 +28,7 @@ export class Bridge {
      * @param cfg The bridge configuration.
      * @returns A configured Bridge instance.
      */
-    public static fromConfig(cfg: BridgeConfig): Bridge {
+    static fromConfig(cfg: BridgeConfig): Bridge {
         let xrpl: XrplResource;
         let evm: EvmResource;
 
@@ -72,26 +75,89 @@ export class Bridge {
         return { type: "xrp", client, wallet };
     }
 
-    /**
-     * Transfer assets between XRPL and XRPL-EVM.
-     * @param from The source chain type.
-     * @param to The destination chain type.
-     * @param asset The asset to transfer.
-     * @param amount The amount to transfer.
-     * @returns A promise that resolves when the transfer is complete.
-     */
-    public async transfer(from: ChainType, to: ChainType, asset: BridgeAsset, amount: number): Promise<void> {
-        // Example logic, you should implement the actual transfer logic here
-        if (from === "xrpl" && to === "xrpl-evm") {
-            // XRPL to XRPL-EVM transfer
-            // Use this.source (XrplResource) and this.destination (EvmResource)
-            // Handle asset type (XRP or issued asset)
-        } else if (from === "xrpl-evm" && to === "xrpl") {
-            // XRPL-EVM to XRPL transfer
-            // Use this.source (EvmResource) and this.destination (XrplResource)
-            // Handle asset type (EVM token or XRP)
-        } else {
-            throw new ProviderError(BridgeErrors.UNSUPPORTED_BRIDGE_DIRECTION);
+    private erc20DecimalCache = new Map<string, number>();
+
+    private async getErc20Decimals(asset: EvmAsset): Promise<number> {
+        // 1) Check the cache first
+        const cached = this.erc20DecimalCache.get(asset.address);
+        if (cached != null) {
+            return cached;
         }
+
+        // 2) If not cached, do the on-chain call
+        const provider = this.evm.provider;
+        if (!provider) {
+            throw new ProviderError(EvmErrors.RPC_UNAVAILABLE, { asset });
+        }
+
+        const abi = ["function decimals() view returns (uint8)"];
+        const tokenContract = new ethers.Contract(asset.address, abi, provider);
+
+        let decimals: number;
+        try {
+            decimals = await tokenContract.decimals();
+        } catch (err: any) {
+            throw new EvmError(EvmErrors.TX_NOT_MINED, { original: err });
+        }
+
+        // 3) Store the result in the cache
+        this.erc20DecimalCache.set(asset.address, decimals);
+
+        // 4) Return it
+        return decimals;
+    }
+
+    async transfer(
+        from: ChainType,
+        to: ChainType,
+        asset: BridgeAsset,
+        amount: number,
+        doorAddress?: string,
+        destinationChainId?: string,
+        destinationAddress?: string,
+    ) {
+        if (from === "xrpl-evm" && to === "xrpl") {
+            return this.transferEvmToXrpl(asset as EvmAsset, amount, doorAddress!, destinationChainId!, destinationAddress!);
+        } else if (from === "xrpl" && to === "xrpl-evm") {
+            return this.transferXrplToEvm(asset, amount, doorAddress!);
+        }
+        throw new ProviderError(BridgeErrors.UNSUPPORTED_BRIDGE_DIRECTION);
+    }
+
+    private async transferEvmToXrpl(asset: EvmAsset, amount: number, door: string, dstChain: string, dstAddr: string) {
+        const decimals = asset.decimals ?? (await this.getErc20Decimals(asset));
+        const scaledAmount = ethers.parseUnits(amount.toString(), decimals);
+        // 3) Call your interchain-transfer contract…
+        const contract = this.getInterchainTokenServiceContract(door);
+        const tx = await contract.interchainTransfer(
+            asset.tokenId, // your on-chain token identifier
+            dstChain,
+            dstAddr,
+            scaledAmount.toString(),
+            "0x",
+            "0",
+        );
+        const receipt = await tx.wait();
+        if (!receipt) {
+            throw new EvmError(EvmErrors.TX_NOT_MINED);
+        }
+        if (receipt.status === 0) {
+            throw new EvmError(EvmErrors.TX_REVERTED, { receipt });
+        }
+        return receipt.transactionHash;
+    }
+
+    private async transferXrplToEvm(asset: XrpAsset | XrplIssuedAsset, amount: number, door: string) {
+        return;
+    }
+    /**
+     * Returns an ethers.Contract instance for the InterchainTokenService.
+     * @param address The contract address.
+     */
+    protected getInterchainTokenServiceContract(address: string): Contract {
+        if (!this.evm.signer) {
+            throw new ProviderError(BridgeErrors.NO_EVM_SIGNER);
+        }
+        return new Contract(address, interchainTokenServiceAbi, this.evm.signer);
     }
 }

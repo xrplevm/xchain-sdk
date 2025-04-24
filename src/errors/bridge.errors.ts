@@ -6,6 +6,8 @@ export enum BridgeErrors {
     NO_RPC_FOR_EVM_DESTINATION = "No RPC endpoint configured for the EVM destination chain",
     NO_RPC_FOR_XRPL_SOURCE = "No RPC/WS endpoint configured for the XRPL source chain",
     NO_RPC_FOR_XRPL_DESTINATION = "No RPC/WS endpoint configured for the XRPL destination chain",
+    NO_EVM_SIGNER = "No EVM signer provided",
+    NO_XRPL_SIGNER = "No XRPL signer provided",
 
     /** Transaction errors **/
     TRANSACTION_REVERTED = "Transaction reverted unexpectedly",
