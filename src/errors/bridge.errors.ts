@@ -17,4 +17,7 @@ export enum BridgeErrors {
     INVALID_CHAIN_TYPE = "Invalid chain type specified",
     UNSUPPORTED_BRIDGE_DIRECTION = "Unsupported bridge direction between the specified chains",
     UNSUPPORTED_BRIDGE_SIDE_TYPE = "Unsupported bridge side type",
+
+    /** Secret/key errors **/
+    MISSING_WALLET_SECRET = "You must provide at least the wallet secret from the destination chain.",
 }
