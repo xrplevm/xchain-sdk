@@ -91,13 +91,13 @@ export class Bridge {
     async transfer(asset: BridgeAsset, amount: number, destinationAddress: string, gasValue?: string): Promise<void> {
         if (this.isEvmAsset(asset)) {
             // EVM→XRPL
-            const axelarGatewayAddress = this.config.evm!.axelarGatewayAddress!;
-            const destinationChainId = this.config.xrpl!.chainId;
+            const axelarGatewayAddress = this.config.evm.axelarGatewayAddress;
+            const destinationChainId = this.config.xrpl.chainId;
             return this.transferEvmToXrpl(asset, amount, axelarGatewayAddress, destinationChainId, destinationAddress, gasValue);
         } else {
             // XRPL→EVM (covers both native XRP & IOUs)
-            const axelarGatewayAddress = this.config.xrpl!.axelarGatewayAddress!;
-            const destinationChainId = this.config.evm!.chainId!;
+            const axelarGatewayAddress = this.config.xrpl.axelarGatewayAddress;
+            const destinationChainId = this.config.evm.chainId;
             return this.transferXrplToEvm(asset, amount, axelarGatewayAddress, destinationChainId, destinationAddress);
         }
     }
