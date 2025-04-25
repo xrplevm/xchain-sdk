@@ -1,24 +1,21 @@
 import { Contract, ethers } from "ethers";
-import { Client as XrplClient, Wallet as XrplWallet } from "xrpl";
-import type { NetworkType } from "../types/network";
-import { BridgeErrors } from "../errors/bridge.errors";
-import { ProviderError } from "../errors/provider.error";
-import { XrplError } from "../errors/xrpl.error";
-import { XrplErrors } from "../errors/xrpl.errors";
-import type { BridgeAsset } from "../types/bridge";
-import type { XrplResource, EvmResource, ChainType } from "../types/chain";
-import type { BridgeConfig } from "../interfaces";
+import { DEFAULT_CONFIG } from "../config/config";
 import { interchainTokenServiceAbi } from "./contracts";
+import { EvmConnection } from "./evm-connection";
+import { XrplConnection } from "./xrpl-connection";
+import { BridgeErrors, ProviderError, XrplError, XrplErrors, EvmError, EvmErrors, BridgeError } from "../errors";
+import type { BridgeAsset } from "../types/bridge";
+import type { BridgeConfig, BridgeOptions, IEvmConnection, IXrplConnection } from "../interfaces";
 import { EvmAsset, XrpAsset, XrplIssuedAsset } from "../interfaces/assets";
-import { EvmError, EvmErrors } from "../errors";
+import { NetworkType } from "../types/network";
 
 export class Bridge {
-    private network: NetworkType;
-    private xrpl: XrplResource;
-    private evm: EvmResource;
+    private config: BridgeConfig;
+    private xrpl: IXrplConnection;
+    private evm: IEvmConnection;
 
-    private constructor(network: NetworkType, xrpl: XrplResource, evm: EvmResource) {
-        this.network = network;
+    private constructor(cfg: BridgeConfig, xrpl: IXrplConnection, evm: IEvmConnection) {
+        this.config = cfg;
         this.xrpl = xrpl;
         this.evm = evm;
     }
@@ -28,63 +25,36 @@ export class Bridge {
      * @param cfg The bridge configuration.
      * @returns A configured Bridge instance.
      */
-    static fromConfig(cfg: BridgeConfig): Bridge {
-        let xrpl: XrplResource;
-        let evm: EvmResource;
+    public static fromConfig(network: NetworkType, overrides?: BridgeOptions): Bridge {
+        // 1. Pull in the defaults for this network
+        const base = DEFAULT_CONFIG[network];
 
-        xrpl = Bridge.constructXrplResources(cfg.xrpl.provider, cfg.xrpl.keyOrSeed);
-        evm = Bridge.constructEvmResources(cfg.evm.provider, cfg.evm.privateKey);
+        // 2. Merge in any user overrides
+        const merged: BridgeConfig = {
+            network,
+            xrpl: { ...base.xrpl!, ...overrides?.xrpl },
+            evm: { ...base.evm!, ...overrides?.evm },
+        };
 
-        return new Bridge(cfg.network, xrpl, evm);
+        // Check for at least one secret/key/seed
+        const hasXrplSecret = !!merged.xrpl?.keyOrSeed;
+        const hasEvmSecret = !!merged.evm?.privateKey;
+        if (!hasXrplSecret && !hasEvmSecret) {
+            throw new BridgeError(BridgeErrors.MISSING_WALLET_SECRET);
+        }
+
+        // 3. Wire up connections
+        const xrplRes = XrplConnection.create(merged.xrpl.providerUrl!, merged.xrpl.keyOrSeed);
+        const evmRes = EvmConnection.create(merged.evm.providerUrl!, merged.evm.privateKey);
+
+        return new Bridge(merged, xrplRes, evmRes);
     }
 
-    /**
-     * Construct EVM resources from RPC URL and optional private key.
-     * @param rpcUrl The EVM RPC URL.
-     * @param evmKey The EVM private key (optional).
-     * @returns The constructed EvmResource.
-     */
-    private static constructEvmResources(rpcUrl: string, evmKey?: string): EvmResource {
-        const provider = new ethers.JsonRpcProvider(rpcUrl);
-        let signer: ethers.Wallet | undefined;
-        if (evmKey) {
-            signer = new ethers.Wallet(evmKey, provider);
-        }
-        return { type: "xrpl-evm", provider, signer };
+    private isEvmAsset(a: BridgeAsset): a is EvmAsset {
+        return (a as EvmAsset).address !== undefined;
     }
-
-    /**
-     * Construct XRPL resources from RPC URL and optional seed.
-     * @param rpcUrl The XRPL RPC URL.
-     * @param xrplSeed The XRPL seed (optional).
-     * @returns The constructed XrplResource.
-     */
-    private static constructXrplResources(rpcUrl: string, xrplSeed?: string): XrplResource {
-        if (!rpcUrl) {
-            throw new ProviderError(BridgeErrors.NO_RPC_FOR_XRPL_SOURCE);
-        }
-        const client = new XrplClient(rpcUrl);
-        let wallet: XrplWallet | undefined;
-        if (xrplSeed) {
-            try {
-                wallet = XrplWallet.fromSeed(xrplSeed);
-            } catch (err: any) {
-                throw new XrplError(XrplErrors.INVALID_SEED, { original: err });
-            }
-        }
-        return { type: "xrp", client, wallet };
-    }
-
-    private erc20DecimalCache = new Map<string, number>();
 
     private async getErc20Decimals(asset: EvmAsset): Promise<number> {
-        // 1) Check the cache first
-        const cached = this.erc20DecimalCache.get(asset.address);
-        if (cached != null) {
-            return cached;
-        }
-
-        // 2) If not cached, do the on-chain call
         const provider = this.evm.provider;
         if (!provider) {
             throw new ProviderError(EvmErrors.RPC_UNAVAILABLE, { asset });
@@ -100,43 +70,29 @@ export class Bridge {
             throw new EvmError(EvmErrors.TX_NOT_MINED, { original: err });
         }
 
-        // 3) Store the result in the cache
-        this.erc20DecimalCache.set(asset.address, decimals);
-
-        // 4) Return it
         return decimals;
     }
 
-    async transfer(
-        from: ChainType,
-        to: ChainType,
-        asset: BridgeAsset,
-        amount: number,
-        doorAddress?: string,
-        destinationChainId?: string,
-        destinationAddress?: string,
-    ) {
-        if (from === "xrpl-evm" && to === "xrpl") {
-            return this.transferEvmToXrpl(asset as EvmAsset, amount, doorAddress!, destinationChainId!, destinationAddress!);
-        } else if (from === "xrpl" && to === "xrpl-evm") {
-            return this.transferXrplToEvm(asset, amount, doorAddress!);
+    async transfer(asset: BridgeAsset, amount: number, destinationAddress: string, gasValue?: string): Promise<void> {
+        if (this.isEvmAsset(asset)) {
+            // EVM→XRPL
+            const axelarGatewayAddress = this.config.evm!.axelarGatewayAddress!;
+            const destinationChainId = this.config.xrpl!.chainId;
+            return this.transferEvmToXrpl(asset, amount, axelarGatewayAddress, destinationChainId, destinationAddress, gasValue);
+        } else {
+            // XRPL→EVM (covers both native XRP & IOUs)
+            const axelarGatewayAddress = this.config.xrpl!.axelarGatewayAddress!;
+            const destinationChainId = this.config.evm!.chainId!;
+            return this.transferXrplToEvm(asset, amount, axelarGatewayAddress, destinationChainId, destinationAddress);
         }
-        throw new ProviderError(BridgeErrors.UNSUPPORTED_BRIDGE_DIRECTION);
     }
 
-    private async transferEvmToXrpl(asset: EvmAsset, amount: number, door: string, dstChain: string, dstAddr: string) {
+    private async transferEvmToXrpl(asset: EvmAsset, amount: number, door: string, dstChain: string, dstAddr: string, gasValue?: string) {
         const decimals = asset.decimals ?? (await this.getErc20Decimals(asset));
         const scaledAmount = ethers.parseUnits(amount.toString(), decimals);
-        // 3) Call your interchain-transfer contract…
+
         const contract = this.getInterchainTokenServiceContract(door);
-        const tx = await contract.interchainTransfer(
-            asset.tokenId, // your on-chain token identifier
-            dstChain,
-            dstAddr,
-            scaledAmount.toString(),
-            "0x",
-            "0",
-        );
+        const tx = await contract.interchainTransfer(asset.tokenId, dstChain, dstAddr, scaledAmount.toString(), "0x", gasValue ?? "0");
         const receipt = await tx.wait();
         if (!receipt) {
             throw new EvmError(EvmErrors.TX_NOT_MINED);
@@ -147,7 +103,7 @@ export class Bridge {
         return receipt.transactionHash;
     }
 
-    private async transferXrplToEvm(asset: XrpAsset | XrplIssuedAsset, amount: number, door: string) {
+    private async transferXrplToEvm(asset: XrpAsset | XrplIssuedAsset, amount: number, door: string, dstChain: string, dstAddr: string) {
         return;
     }
     /**
