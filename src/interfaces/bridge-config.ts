@@ -1,21 +1,14 @@
-import { NetworkType } from "../types";
+import { NetworkType } from "../types/network";
 
-// XRPL side config
-export interface XrplBridgeConfig {
-    type: "xrpl";
-    provider: string;
-    keyOrSeed?: string;
-}
-
-// EVM side config
-export interface EvmBridgeConfig {
-    type: "xrpl-evm";
-    provider: string;
-    privateKey?: string;
+export interface ChainConfig {
+    providerUrl: string;
+    chainId: string;
+    axelarGatewayAddress: string;
+    interchainTokenServiceAddress: string;
 }
 
 export interface BridgeConfig {
     network: NetworkType;
-    xrpl: XrplBridgeConfig;
-    evm: EvmBridgeConfig;
+    xrpl: ChainConfig & { keyOrSeed?: string };
+    evm: ChainConfig & { privateKey?: string };
 }
