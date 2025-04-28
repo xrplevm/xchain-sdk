@@ -1,12 +1,13 @@
 import { ethers } from "ethers";
+import { IEvmConnection } from "../interfaces";
 
-export abstract class EvmConnection {
-    public static create(rpcUrl: string, evmKey?: string) {
+export class EvmConnection {
+    static create(rpcUrl: string, evmKey?: string): IEvmConnection {
         const provider = new ethers.JsonRpcProvider(rpcUrl);
         let signer: ethers.Wallet | undefined;
         if (evmKey) {
             signer = new ethers.Wallet(evmKey, provider);
         }
-        return { type: "xrpl-evm", provider, signer };
+        return { provider, signer };
     }
 }

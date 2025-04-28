@@ -1,7 +1,8 @@
 import { ChainConfig } from "./bridge-config";
 
-export interface BridgeOptions {
-    xrpl?: ChainConfig & { keyOrSeed?: string };
+export type ChainOptions = Partial<ChainConfig> & { keyOrSeed?: string; privateKey?: string };
 
-    evm?: ChainConfig & { privateKey?: string };
+export interface BridgeOptions {
+    xrpl?: ChainOptions;
+    evm?: ChainOptions;
 }
