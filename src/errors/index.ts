@@ -5,3 +5,5 @@ export * from "./evm.error";
 export * from "./evm.errors";
 export * from "./xrpl.error";
 export * from "./xrpl.errors";
+export * from "./transaction-parser.error";
+export * from "./xrpl.transaction-parser.errors";

@@ -59,7 +59,7 @@ export function parseCurrencyCode(currencyCode: string): string {
         throw new Error(`Currency code ${currencyCode} cannot start with 00 since it is a non standard currency code`);
     else
         try {
-            return convertHexToString(currencyCode).replaceAll("\0", "");
+            return convertHexToString(currencyCode).replace(/\0/g, "");
         } catch (e) {
             throw new Error(`Currency code ${currencyCode} is not a valid non standard currency code: ${e}`);
         }
