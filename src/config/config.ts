@@ -11,8 +11,8 @@ export const DEFAULT_CONFIG: Record<NetworkType, BridgeConfig> = {
         xrpl: {
             providerUrl: "wss://s.devnet.rippletest.net:51233",
             chainId: "xrpl-dev",
-            axelarGatewayAddress: "rNrjh1KGZk2jBR3wPfAQnoidtFFYQKbQn2",
-            interchainTokenServiceAddress: "rNrjh1KGZk2jBR3wPfAQnoidtFFYQKbQn2",
+            axelarGatewayAddress: "rGAbJZEzU6WaYv5y1LfyN7LBBcQJ3TxsKC",
+            interchainTokenServiceAddress: "rGAbJZEzU6WaYv5y1LfyN7LBBcQJ3TxsKC",
         },
         evm: {
             providerUrl: "https://rpc.devnet.xrplevm.org",
@@ -31,7 +31,7 @@ export const DEFAULT_CONFIG: Record<NetworkType, BridgeConfig> = {
         },
         evm: {
             providerUrl: "https://rpc.testnet.xrplevm.org",
-            chainId: "xrpl-evm-testnet",
+            chainId: "xrpl-evm",
             axelarGatewayAddress: "0xe432150cce91c13a887f7D836923d5597adD8E31",
             interchainTokenServiceAddress: "0xB5FB4BE02232B1bBA4dC8f81dc24C26980dE9e3C",
         },
