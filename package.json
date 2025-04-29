@@ -12,10 +12,9 @@
     "scripts": {
         "clean": "rimraf dist",
         "build:node": "tsc -p tsconfig.node.json",
-        "build:browser": "tsc -p tsconfig.browser.json",
-        "build": "pnpm run clean && pnpm run build:node && pnpm run build:browser",
-        "test:node": "jest --config jest.node.config.ts",
         "test:browser": "jest --config jest.browser.config.ts",
+        "build": "pnpm run clean && pnpm run build:node && pnpm run build:browser",
+        "test:node": "jest --config jest.node.config.ts test/tests",
         "test": "pnpm run test:node && pnpm run test:browser",
         "lint": "eslint .",
         "format": "prettier --write .",
@@ -28,7 +27,7 @@
     "license": "ISC",
     "devDependencies": {
         "@types/jest": "29.5.12",
-        "@types/node": "^22.14.1",
+        "@types/node": "^22.15.2",
         "@typescript-eslint/eslint-plugin": "8.3.0",
         "@typescript-eslint/parser": "8.3.0",
         "eslint": "8.57.0",
