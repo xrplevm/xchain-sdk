@@ -15,12 +15,12 @@ export function parseTransactionResponse<TxRes extends ethers.TransactionRespons
         hash: txResponse.hash,
         wait: async () => {
             const txReceipt = await txResponse.wait();
-
             return {
                 hash: txReceipt!.hash,
                 confirmed: true,
-                ...extraConfirmedData?.(txReceipt as Awaited<ReturnType<TxRes["wait"]>>),
+                ...(extraConfirmedData?.(txReceipt as Awaited<ReturnType<TxRes["wait"]>>) ?? {}),
             } as Confirmed<Transaction & TData>;
         },
+        getRaw: async () => txResponse,
     };
 }

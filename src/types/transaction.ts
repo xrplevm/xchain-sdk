@@ -11,4 +11,5 @@ export type Unconfirmed<T extends Transaction> = {
     hash: string;
     confirmed: false;
     wait: () => Promise<Confirmed<T>>;
+    getRaw: () => Promise<any>;
 };

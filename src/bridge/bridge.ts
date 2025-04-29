@@ -4,11 +4,11 @@ import { interchainERC20Abi, interchainTokenServiceAbi } from "./contracts";
 import { EvmConnection } from "./evm-connection";
 import { XrplConnection } from "./xrpl-connection";
 import { BridgeErrors, ProviderError, XrplError, XrplErrors, EvmError, EvmErrors, BridgeError } from "../errors";
-import type { BridgeAsset } from "../types/bridge";
+import type { BridgeAsset, TransferOptions } from "../types/bridge";
 import type { BridgeConfig, BridgeOptions, IEvmConnection, IXrplConnection } from "../interfaces";
 import { EvmAsset, XrpAsset, XrplIssuedAsset } from "../interfaces/assets";
 import { NetworkType } from "../types/network";
-import { EvmTranslator, XrpTranslator } from "./translators";
+import { translateEvmAddress, translateXrpAddress } from "./translators";
 import { convertCurrencyCode } from "./translators/currency-code";
 import { convertStringToHex, Payment, xrpToDrops } from "xrpl";
 import { TransactionResponse } from "ethers";
@@ -99,65 +99,61 @@ export class Bridge {
     }
 
     /**
-     * Transfers assets between EVM and XRPL chains.
-     * @param asset The asset to transfer.
-     * @param destinationAddress The destination address.
-     * @param gasValue Optional gas value for EVM transfers.
-     * @returns A promise that resolves when the transfer is complete.
+     * Transfers an asset between EVM and XRPL chains.
+     * @param asset The asset to transfer (EvmAsset or XrpAsset/XrplIssuedAsset).
+     * @param destinationAddress The destination address on the target chain.
+     * @param options Optional transfer parameters (e.g., interchainGasValue, txValue, gasFeeAmount).
+     * @returns A promise resolving to an unconfirmed transaction object.
      */
-    async transfer(asset: BridgeAsset, destinationAddress: string, gasValue?: string): Promise<Unconfirmed<Transaction>> {
+    async transfer(asset: BridgeAsset, destinationAddress: string, options: TransferOptions = {}): Promise<Unconfirmed<Transaction>> {
         if (this.isEvmAsset(asset)) {
-            // EVM→XRPL
             const interchainTokenServiceAddress = this.config.evm.interchainTokenServiceAddress;
             const destinationChainId = this.config.xrpl.chainId;
-            return this.transferEvmToXrpl(asset, interchainTokenServiceAddress, destinationChainId, destinationAddress, gasValue);
+            return this.transferEvmToXrpl(asset, interchainTokenServiceAddress, destinationChainId, destinationAddress, options);
         } else {
-            // XRPL→EVM (covers both native XRP & IOUs)
             const interchainTokenServiceAddress = this.config.xrpl.interchainTokenServiceAddress;
             const destinationChainId = this.config.evm.chainId;
-            return this.transferXrplToEvm(asset, interchainTokenServiceAddress, destinationChainId, destinationAddress);
+            return this.transferXrplToEvm(asset, interchainTokenServiceAddress, destinationChainId, destinationAddress, options);
         }
     }
 
     /**
      * Handles transfer from EVM to XRPL.
-     * @param asset The EVM asset.
-     * @param amount The amount to transfer.
-     * @param door The contract address (door).
-     * @param dstChain The destination chain ID.
-     * @param dstAddr The destination address.
-     * @param gasValue Optional gas value.
-     * @returns The transaction hash.
-     * @throws {EvmError} If transaction fails.
+     * @param asset The EVM asset to transfer.
+     * @param doorAddress The InterchainTokenService contract address.
+     * @param dstChainId The destination XRPL chain ID.
+     * @param dstAddr The destination XRPL address.
+     * @param options Optional transfer parameters (interchainGasValue, txValue, etc).
+     * @returns A promise resolving to an unconfirmed transaction object.
      */
     private async transferEvmToXrpl(
         asset: EvmAsset,
-        door: string,
-        dstChain: string,
+        doorAddress: string,
+        dstChainId: string,
         dstAddr: string,
-        gasValue?: string,
+        options: TransferOptions = {},
     ): Promise<Unconfirmed<Transaction>> {
+        const interchainGasValue = options.interchainGasValue ?? ethers.parseEther("0.2");
+        const txValue = options.evmGasValue ?? ethers.parseEther("0.2");
         const filledAsset = await this.autofillErc20Info(asset);
 
-        const decimals = filledAsset.decimals!;
-        const tokenId = filledAsset.tokenId!;
-        const scaledAmount = ethers.parseUnits(filledAsset.amount.toString(), decimals);
-        const defaultGasValueWei = ethers.parseUnits("0.2", 18);
-        const translate = new EvmTranslator();
-        const translatedDstAddr = translate.translateAddress(dstAddr);
+        const decimals = filledAsset.decimals;
+        const tokenId = filledAsset.tokenId;
 
-        const contract = this.getInterchainTokenServiceContract(door);
+        const scaledAmount = ethers.parseUnits(filledAsset.amount.toString(), decimals);
+        const translatedDstAddr = translateEvmAddress(dstAddr);
+
+        const contract = this.getInterchainTokenServiceContract(doorAddress);
         const contractTx = await contract.interchainTransfer(
             tokenId,
-            dstChain,
+            dstChainId,
             translatedDstAddr,
             scaledAmount.toString(),
             "0x",
-            gasValue ?? defaultGasValueWei,
-            { value: gasValue ?? defaultGasValueWei },
+            interchainGasValue,
+            { value: txValue },
         );
 
-        // Use the EVM parser to return Unconfirmed<Transaction>
         return parseTransactionResponse(contractTx as ethers.TransactionResponse);
     }
 
@@ -167,19 +163,22 @@ export class Bridge {
 
     /**
      * Handles transfer from XRPL to EVM.
-     * @param asset The XRPL asset (native or issued).
-     * @param amount The amount to transfer.
-     * @param door The door address.
-     * @param dstChain The destination chain ID.
-     * @param dstAddr The destination address.
-     * @returns A promise that resolves when the transfer is complete.
+     * @param asset The XRPL asset to transfer (native or issued).
+     * @param doorAddress The XRPL door address (bridge contract).
+     * @param destinationChainId The destination EVM chain ID.
+     * @param destinationAddress The destination EVM address.
+     * @param options Optional transfer parameters (gasFeeAmount, etc).
+     * @returns A promise resolving to an unconfirmed transaction object.
+     * @throws {XrplError} If the transaction fails.
      */
-    private async transferXrplToEvm(
+    async transferXrplToEvm(
         asset: XrpAsset | XrplIssuedAsset,
         doorAddress: string,
         destinationChainId: string,
         destinationAddress: string,
+        options: TransferOptions = {},
     ): Promise<Unconfirmed<Transaction>> {
+        const gasFeeAmount = options.xrplGasFeeAmount ?? "1700000";
         const amountStr = asset.amount;
 
         const Amount = this.isIssuedAsset(asset)
@@ -193,26 +192,26 @@ export class Bridge {
         const memos = [
             {
                 Memo: {
-                    MemoData: Buffer.from("interchain_transfer").toString("hex").toUpperCase(),
-                    MemoType: Buffer.from("type").toString("hex").toUpperCase(),
+                    MemoType: convertStringToHex("type"),
+                    MemoData: convertStringToHex("interchain_transfer"),
                 },
             },
             {
                 Memo: {
-                    MemoData: Buffer.from(destinationAddress.slice(2)).toString("hex").toUpperCase(),
-                    MemoType: Buffer.from("destination_address").toString("hex").toUpperCase(),
+                    MemoType: convertStringToHex("destination_address"),
+                    MemoData: translateXrpAddress(destinationAddress),
                 },
             },
             {
                 Memo: {
-                    MemoData: Buffer.from(destinationChainId).toString("hex").toUpperCase(),
-                    MemoType: Buffer.from("destination_chain").toString("hex").toUpperCase(),
+                    MemoType: convertStringToHex("destination_chain"),
+                    MemoData: convertStringToHex(destinationChainId),
                 },
             },
             {
                 Memo: {
-                    MemoData: Buffer.from("1700000").toString("hex").toUpperCase(),
-                    MemoType: Buffer.from("gas_fee_amount").toString("hex").toUpperCase(),
+                    MemoType: convertStringToHex("gas_fee_amount"),
+                    MemoData: convertStringToHex(gasFeeAmount),
                 },
             },
         ];
@@ -236,7 +235,6 @@ export class Bridge {
         const signed = wallet.sign(tx);
         const submitTxResponse = await client.submit(signed.tx_blob);
 
-        // Use the XRPL parser to return Unconfirmed<Transaction>
         return parseSubmitTransactionResponse(client, submitTxResponse);
     }
 
@@ -250,5 +248,87 @@ export class Bridge {
             throw new ProviderError(BridgeErrors.NO_EVM_SIGNER);
         }
         return new Contract(address, interchainTokenServiceAbi, this.evm.signer);
+    }
+
+    /**
+     * Calls a contract on the destination chain with a token transfer from XRPL.
+     * @param asset The XRPL asset to transfer (native XRP or issued asset).
+     * @param destinationContractAddress The contract address on the destination chain.
+     * @param payload The payload to send to the destination contract.
+     * @param gasFeeAmount The gas fee amount to include in the XRPL memo (as string, default "1700000").
+     * @returns A promise that resolves to an Unconfirmed<Transaction>.
+     */
+    async callContractWithToken(
+        asset: XrpAsset | XrplIssuedAsset,
+        destinationContractAddress: string,
+        payload: string,
+        gasFeeAmount: string = "1700000",
+    ): Promise<Unconfirmed<Transaction>> {
+        const axelarGatewayAddress = this.config.xrpl.axelarGatewayAddress;
+        const destinationChainId = this.config.evm.chainId;
+
+        const memos = [
+            {
+                Memo: {
+                    MemoType: convertStringToHex("type"),
+                    MemoData: convertStringToHex("interchain_transfer"),
+                },
+            },
+            {
+                Memo: {
+                    MemoType: convertStringToHex("destination_address"),
+                    MemoData: translateXrpAddress(destinationContractAddress),
+                },
+            },
+            {
+                Memo: {
+                    MemoType: convertStringToHex("destination_chain"),
+                    MemoData: convertStringToHex(destinationChainId),
+                },
+            },
+            {
+                Memo: {
+                    MemoType: convertStringToHex("gas_fee_amount"),
+                    MemoData: convertStringToHex(gasFeeAmount),
+                },
+            },
+            {
+                Memo: {
+                    MemoType: convertStringToHex("payload"),
+                    MemoData: convertStringToHex(payload),
+                },
+            },
+        ];
+
+        const Amount = this.isIssuedAsset(asset)
+            ? {
+                  currency: convertCurrencyCode(asset.symbol!),
+                  value: asset.amount,
+                  issuer: asset.issuer!,
+              }
+            : xrpToDrops(asset.amount);
+
+        const payment: Payment = {
+            TransactionType: "Payment",
+            Account: this.xrpl.wallet!.address,
+            Amount,
+            Destination: axelarGatewayAddress,
+            Flags: 0,
+            Fee: "12",
+            Memos: memos,
+        };
+
+        const client = this.xrpl.client;
+        const wallet = this.xrpl.wallet!;
+
+        if (!client.isConnected()) {
+            await client.connect();
+        }
+
+        const tx = await client.autofill(payment);
+        const signed = wallet.sign(tx);
+        const submitTxResponse = await client.submit(signed.tx_blob);
+
+        return parseSubmitTransactionResponse(client, submitTxResponse);
     }
 }

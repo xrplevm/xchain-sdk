@@ -53,5 +53,6 @@ export function parseSubmitTransactionResponse<T extends SubmittableTransaction,
                 ...(extraValidatedData?.(txResponse) ?? {}),
             } as Confirmed<Transaction & TData>;
         },
+        getRaw: async () => submitTxResponse,
     };
 }
