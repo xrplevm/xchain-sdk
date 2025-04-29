@@ -8,9 +8,11 @@ import type { BridgeAsset } from "../types/bridge";
 import type { BridgeConfig, BridgeOptions, IEvmConnection, IXrplConnection } from "../interfaces";
 import { EvmAsset, XrpAsset, XrplIssuedAsset } from "../interfaces/assets";
 import { NetworkType } from "../types/network";
-import { EvmTranslator } from "./translators";
+import { EvmTranslator, XrpTranslator } from "./translators";
 import { convertCurrencyCode } from "./translators/currency-code";
 import { convertStringToHex, Payment, xrpToDrops } from "xrpl";
+import { TransactionResponse } from "ethers";
+import { Transaction, Unconfirmed } from "../types";
 
 export class Bridge {
     private config: BridgeConfig;
@@ -116,7 +118,14 @@ export class Bridge {
      * @returns The transaction hash.
      * @throws {EvmError} If transaction fails.
      */
-    private async transferEvmToXrpl(asset: EvmAsset, amount: number, door: string, dstChain: string, dstAddr: string, gasValue?: string) {
+    private async transferEvmToXrpl(
+        asset: EvmAsset,
+        amount: number,
+        door: string,
+        dstChain: string,
+        dstAddr: string,
+        gasValue?: string,
+    ): Promise<Unconfirmed<Transaction>> {
         const decimals = asset.decimals ?? (await this.getErc20Decimals(asset));
         const scaledAmount = ethers.parseUnits(amount.toString(), decimals);
         const defaultGasValueWei = ethers.parseUnits("0.2", 18);
@@ -182,7 +191,6 @@ export class Bridge {
             // Convert amount to string for XRPL
             const amountStr = amount.toString();
 
-            // Prepare the Amount field for XRPL Payment
             const Amount = this.isIssuedAsset(asset)
                 ? {
                       currency: convertCurrencyCode(asset.symbol!),
@@ -191,21 +199,31 @@ export class Bridge {
                   }
                 : xrpToDrops(amountStr);
 
-            // Prepare memos
             const memos = [
                 {
                     Memo: {
-                        MemoType: "64657374696E6174696F6E5F61646472657373", // hex("destination_address")
-                        MemoData: destinationAddress,
+                        MemoData: Buffer.from("interchain_transfer").toString("hex").toUpperCase(),
+                        MemoType: Buffer.from("type").toString("hex").toUpperCase(),
                     },
                 },
                 {
                     Memo: {
-                        MemoType: "64657374696E6174696F6E5F636861696E", // hex("destination_chain")
-                        MemoData: convertStringToHex(destinationChainId),
+                        MemoData: Buffer.from(destinationAddress.slice(2)).toString("hex").toUpperCase(),
+                        MemoType: Buffer.from("destination_address").toString("hex").toUpperCase(),
                     },
                 },
-                // Optionally add payload_hash memo if needed
+                {
+                    Memo: {
+                        MemoData: Buffer.from(destinationChainId).toString("hex").toUpperCase(),
+                        MemoType: Buffer.from("destination_chain").toString("hex").toUpperCase(),
+                    },
+                },
+                {
+                    Memo: {
+                        MemoData: Buffer.from("1700000").toString("hex").toUpperCase(),
+                        MemoType: Buffer.from("gas_fee_amount").toString("hex").toUpperCase(),
+                    },
+                },
             ];
 
             // Build the payment transaction
@@ -217,12 +235,19 @@ export class Bridge {
                 Memos: memos,
             };
 
+            console.log("Payment object before autofill:", JSON.stringify(payment, null, 2));
+
             // Use the xrpl client and wallet from your connection
             const client = this.xrpl.client;
             const wallet = this.xrpl.wallet!;
 
+            if (!client.isConnected()) {
+                await client.connect();
+            }
+
             // Autofill transaction
             const tx = await client.autofill(payment);
+            console.log("Autofilled transaction:", JSON.stringify(tx, null, 2));
 
             // Sign transaction
             const signed = wallet.sign(tx);
