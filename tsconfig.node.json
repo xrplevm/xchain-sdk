@@ -8,5 +8,5 @@
         "removeComments": true,
         "sourceMap": true
     },
-    "exclude": ["test", "dist"]
+    "exclude": ["test", "dist", "examples"]
 }
