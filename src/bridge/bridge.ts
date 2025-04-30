@@ -9,7 +9,7 @@ import { TransferOptions } from "./types/transfer";
 import { BridgeAsset } from "./types";
 import { NetworkType } from "../common/network/types";
 import { XrpAsset, XrplChainConfig, XrplConnection, XrplIssuedAsset } from "../chains/xrpl";
-import { EvmAsset, XrplEvmChainConfig, XrplEvmConnection, XrplEvmError, XrplEvmErrorCodes } from "../chains/xrplevm";
+import { XrplEvmAsset, XrplEvmChainConfig, XrplEvmConnection, XrplEvmError, XrplEvmErrorCodes } from "../chains/xrplevm";
 import { interchainERC20Abi } from "../chains/xrplevm/contracts/interchain-erc20";
 import { interchainTokenServiceAbi } from "../chains/xrplevm/contracts/interchain-token-service";
 import { isEvmAsset } from "../chains/xrplevm/utils";
@@ -62,7 +62,7 @@ export class Bridge {
      * @param asset The EVM asset.
      * @returns The asset with decimals and tokenId filled in.
      */
-    private async autofillErc20Info(asset: EvmAsset): Promise<EvmAsset> {
+    private async autofillErc20Info(asset: XrplEvmAsset): Promise<XrplEvmAsset> {
         const provider = this.evm.provider;
         if (!provider) {
             throw new XrplEvmError(XrplEvmErrorCodes.RPC_UNAVAILABLE, { asset });
@@ -112,7 +112,7 @@ export class Bridge {
      * @returns A promise resolving to the EVM transaction receipt, or null if not mined.
      */
     async transfer(
-        asset: EvmAsset,
+        asset: XrplEvmAsset,
         destinationAddress: string,
         options?: XrplEvmTransferOptions,
     ): Promise<ethers.TransactionReceipt | null>;
@@ -162,7 +162,7 @@ export class Bridge {
      * @returns A promise resolving to an unconfirmed transaction object.
      */
     private async transferEvmToXrpl(
-        asset: EvmAsset,
+        asset: XrplEvmAsset,
         doorAddress: string,
         dstChainId: string,
         dstAddr: string,

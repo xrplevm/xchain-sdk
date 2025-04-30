@@ -1,4 +1,4 @@
-export interface EvmAsset {
+export interface XrplEvmAsset {
     address: string;
     tokenId?: string;
     symbol?: string;
