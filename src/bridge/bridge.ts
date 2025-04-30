@@ -255,15 +255,16 @@ export class Bridge {
      * @param asset The XRPL asset to transfer (native XRP or issued asset).
      * @param destinationContractAddress The contract address on the destination chain.
      * @param payload The payload to send to the destination contract.
-     * @param gasFeeAmount The gas fee amount to include in the XRPL memo (as string, default "1700000").
+     * @param options Optional transfer parameters (gasFeeAmount, etc).
      * @returns A promise that resolves to an Unconfirmed<Transaction>.
      */
     async callContractWithToken(
         asset: XrpAsset | XrplIssuedAsset,
         destinationContractAddress: string,
         payload: string,
-        gasFeeAmount: string = "1700000",
+        options: TransferOptions = {},
     ): Promise<Unconfirmed<Transaction>> {
+        const gasFeeAmount = options.xrplGasFeeAmount ?? "1700000";
         const axelarGatewayAddress = this.config.xrpl.axelarGatewayAddress;
         const destinationChainId = this.config.evm.chainId;
 
