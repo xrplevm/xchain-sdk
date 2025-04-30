@@ -1,0 +1,14 @@
+{
+    "name": "xchain-sdk-examples",
+    "version": "0.0.1",
+    "private": true,
+    "type": "module",
+    "main": "index.js",
+    "dependencies": {
+        "@xrplevm/xchain-sdk": "file:../dist/node",
+        "dotenv": "^16.5.0"
+    },
+    "devDependencies": {
+        "typescript": "^5.8.3"
+    }
+}
