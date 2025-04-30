@@ -19,5 +19,5 @@ export enum BridgeErrors {
     UNSUPPORTED_BRIDGE_SIDE_TYPE = "Unsupported bridge side type",
 
     /** Secret/key errors **/
-    MISSING_WALLET_SECRET = "You must provide at least the wallet secret from the destination chain.",
+    MISSING_WALLET_SECRET = "You must provide at least the wallet secret from the source chain.",
 }

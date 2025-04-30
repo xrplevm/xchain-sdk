@@ -12,8 +12,9 @@
     "scripts": {
         "clean": "rimraf dist",
         "build:node": "tsc -p tsconfig.node.json",
-        "test:browser": "jest --config jest.browser.config.ts",
+        "build:browser": "tsc -p tsconfig.browser.json",
         "build": "pnpm run clean && pnpm run build:node && pnpm run build:browser",
+        "test:browser": "jest --config jest.browser.config.ts",
         "test:node": "jest --config jest.node.config.ts test/tests",
         "test": "pnpm run test:node && pnpm run test:browser",
         "lint": "eslint .",

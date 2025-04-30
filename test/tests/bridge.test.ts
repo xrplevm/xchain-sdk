@@ -1,7 +1,6 @@
 import { Bridge } from "../../src/bridge/bridge";
-import { NetworkType } from "../../src/types/network";
+import { BridgeOptions } from "../../src/config";
 import { BridgeError, BridgeErrors } from "../../src/errors";
-import { DEFAULT_CONFIG } from "../../src/config/config";
 import { XrpAsset } from "../../src/interfaces";
 
 // Replace with real or testnet values for integration testing
@@ -22,12 +21,12 @@ jest.setTimeout(260000); // 60 seconds for all tests in this file
 
 describe("Bridge (integration)", () => {
     it("should construct a Bridge instance from config with valid secrets", () => {
-        const overrides = {
+        const overrides: BridgeOptions = {
             xrpl: {
                 providerUrl: TESTNET_XRPL_PROVIDER,
-                keyOrSeed: TESTNET_XRPL_SEED,
+                seed: TESTNET_XRPL_SEED,
             },
-            evm: {
+            xrplevm: {
                 providerUrl: TESTNET_EVM_PROVIDER,
                 privateKey: TESTNET_EVM_PRIVATE_KEY,
             },
@@ -54,11 +53,13 @@ describe("Bridge (integration)", () => {
     });
 
     it("should transfer EVM asset to XRPL", async () => {
-        const overrides = {
+        const overrides: BridgeOptions = {
             xrpl: {
-                keyOrSeed: TESTNET_XRPL_SEED,
+                providerUrl: TESTNET_XRPL_PROVIDER,
+                seed: TESTNET_XRPL_SEED,
             },
-            evm: {
+            xrplevm: {
+                providerUrl: TESTNET_EVM_PROVIDER,
                 privateKey: TESTNET_EVM_PRIVATE_KEY,
             },
         };
@@ -88,10 +89,7 @@ describe("Bridge (integration)", () => {
     it("should transfer native XRP from XRPL to EVM", async () => {
         const overrides = {
             xrpl: {
-                keyOrSeed: TESTNET_XRPL_SEED,
-            },
-            evm: {
-                privateKey: TESTNET_EVM_PRIVATE_KEY,
+                seed: TESTNET_XRPL_SEED,
             },
         };
 
@@ -123,9 +121,9 @@ describe("Bridge (integration)", () => {
     it("should call a contract with token transfer from XRPL", async () => {
         const overrides = {
             xrpl: {
-                keyOrSeed: TESTNET_XRPL_SEED,
+                seed: TESTNET_XRPL_SEED,
             },
-            evm: {
+            xrplevm: {
                 privateKey: TESTNET_EVM_PRIVATE_KEY,
             },
         };

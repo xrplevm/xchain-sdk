@@ -1,27 +1,22 @@
 import { Contract, ethers } from "ethers";
-import { DEFAULT_CONFIG } from "../config/config";
 import { interchainERC20Abi, interchainTokenServiceAbi } from "./contracts";
-import { EvmConnection } from "./evm-connection";
-import { XrplConnection } from "./xrpl-connection";
-import { BridgeErrors, ProviderError, XrplError, XrplErrors, EvmError, EvmErrors, BridgeError } from "../errors";
-import type { BridgeAsset, TransferOptions } from "../types/bridge";
-import type { BridgeConfig, BridgeOptions, IEvmConnection, IXrplConnection } from "../interfaces";
+import { BridgeErrors, ProviderError, EvmError, EvmErrors, BridgeError } from "../errors";
+import type { BridgeAsset, TransferOptions, XrplEvmTransferOptions, XrplTransferOptions } from "../types/bridge";
 import { EvmAsset, XrpAsset, XrplIssuedAsset } from "../interfaces/assets";
 import { NetworkType } from "../types/network";
 import { translateEvmAddress, translateXrpAddress } from "./translators";
 import { convertCurrencyCode } from "./translators/currency-code";
-import { convertStringToHex, Payment, xrpToDrops } from "xrpl";
-import { TransactionResponse } from "ethers";
-import { Transaction, Unconfirmed } from "../types";
-import { parseTransactionResponse } from "./parsers/evm";
-import { parseSubmitTransactionResponse } from "./parsers/xrpl";
+import { convertStringToHex, Payment, SubmittableTransaction, TxResponse, xrpToDrops } from "xrpl";
+import deepmerge from "../../test/mock/utils/deepmerge";
+import { BridgeConfig, BridgeOptions, DEFAULT_CONFIG, XrplChainConfig, XrplEvmChainConfig } from "../config";
+import { XrplConnection, XrplEvmConnection } from "./connections";
 
 export class Bridge {
     private config: BridgeConfig;
-    private xrpl: IXrplConnection;
-    private evm: IEvmConnection;
+    private xrpl: XrplConnection;
+    private evm: XrplEvmConnection;
 
-    private constructor(cfg: BridgeConfig, xrpl: IXrplConnection, evm: IEvmConnection) {
+    private constructor(cfg: BridgeConfig, xrpl: XrplConnection, evm: XrplEvmConnection) {
         this.config = cfg;
         this.xrpl = xrpl;
         this.evm = evm;
@@ -34,24 +29,27 @@ export class Bridge {
      * @returns A configured Bridge instance.
      */
     static fromConfig(network: NetworkType, overrides?: BridgeOptions): Bridge {
-        const base = DEFAULT_CONFIG[network];
+        const networkConfig = DEFAULT_CONFIG[network];
 
-        const merged: BridgeConfig = {
+        const xrplConfig: XrplChainConfig = overrides?.xrpl ? deepmerge(networkConfig.xrpl, overrides.xrpl) : networkConfig.xrpl;
+        const xrplevmConfig: XrplEvmChainConfig = overrides?.xrplevm
+            ? deepmerge(networkConfig.xrplevm, overrides.xrplevm)
+            : networkConfig.xrplevm;
+
+        const config: BridgeConfig = {
             network,
-            xrpl: { ...base.xrpl!, ...overrides?.xrpl },
-            evm: { ...base.evm!, ...overrides?.evm },
+            xrpl: xrplConfig,
+            xrplevm: xrplevmConfig,
         };
 
-        const hasXrplSecret = !!merged.xrpl?.keyOrSeed;
-        const hasEvmSecret = !!merged.evm?.privateKey;
-        if (!hasXrplSecret && !hasEvmSecret) {
+        if (!xrplConfig.seed && !xrplevmConfig.privateKey) {
             throw new BridgeError(BridgeErrors.MISSING_WALLET_SECRET);
         }
 
-        const xrplRes = XrplConnection.create(merged.xrpl.providerUrl!, merged.xrpl.keyOrSeed);
-        const evmRes = EvmConnection.create(merged.evm.providerUrl!, merged.evm.privateKey);
+        const xrplConnection = XrplConnection.create(xrplConfig.providerUrl, xrplConfig.seed);
+        const xrplevmConnection = XrplEvmConnection.create(xrplevmConfig.providerUrl, xrplevmConfig.privateKey);
 
-        return new Bridge(merged, xrplRes, evmRes);
+        return new Bridge(config, xrplConnection, xrplevmConnection);
     }
 
     /**
@@ -105,15 +103,27 @@ export class Bridge {
      * @param options Optional transfer parameters (e.g., interchainGasValue, txValue, gasFeeAmount).
      * @returns A promise resolving to an unconfirmed transaction object.
      */
-    async transfer(asset: BridgeAsset, destinationAddress: string, options: TransferOptions = {}): Promise<Unconfirmed<Transaction>> {
+    async transfer(asset: BridgeAsset, destinationAddress: string, options: TransferOptions = {}): Promise<any> {
         if (this.isEvmAsset(asset)) {
-            const interchainTokenServiceAddress = this.config.evm.interchainTokenServiceAddress;
+            const interchainTokenServiceAddress = this.config.xrplevm.interchainTokenServiceAddress;
             const destinationChainId = this.config.xrpl.chainId;
-            return this.transferEvmToXrpl(asset, interchainTokenServiceAddress, destinationChainId, destinationAddress, options);
+            return this.transferEvmToXrpl(
+                asset,
+                interchainTokenServiceAddress,
+                destinationChainId,
+                destinationAddress,
+                options as XrplEvmTransferOptions,
+            );
         } else {
             const interchainTokenServiceAddress = this.config.xrpl.interchainTokenServiceAddress;
-            const destinationChainId = this.config.evm.chainId;
-            return this.transferXrplToEvm(asset, interchainTokenServiceAddress, destinationChainId, destinationAddress, options);
+            const destinationChainId = this.config.xrplevm.chainId;
+            return this.transferXrplToEvm(
+                asset,
+                interchainTokenServiceAddress,
+                destinationChainId,
+                destinationAddress,
+                options as XrplTransferOptions,
+            );
         }
     }
 
@@ -131,10 +141,10 @@ export class Bridge {
         doorAddress: string,
         dstChainId: string,
         dstAddr: string,
-        options: TransferOptions = {},
-    ): Promise<Unconfirmed<Transaction>> {
-        const interchainGasValue = options.interchainGasValue ?? ethers.parseEther("0.2");
-        const txValue = options.evmGasValue ?? ethers.parseEther("0.2");
+        options: XrplEvmTransferOptions = {},
+    ): Promise<any> {
+        const interchainGasValue = ethers.parseEther(options.interchainGasValue ?? this.config.xrplevm.interchainGasValue);
+        const gasValue = ethers.parseEther(options.evmGasValue ?? this.config.xrplevm.gasValue);
         const filledAsset = await this.autofillErc20Info(asset);
 
         const decimals = filledAsset.decimals;
@@ -144,19 +154,27 @@ export class Bridge {
         const translatedDstAddr = translateEvmAddress(dstAddr);
 
         const contract = this.getInterchainTokenServiceContract(doorAddress);
-        const contractTx = await contract.interchainTransfer(
+        const tx = await contract.interchainTransfer(
             tokenId,
             dstChainId,
             translatedDstAddr,
             scaledAmount.toString(),
             "0x",
             interchainGasValue,
-            { value: txValue },
+            { gasValue },
         );
 
-        return parseTransactionResponse(contractTx as ethers.TransactionResponse);
+        const response = await tx.wait();
+
+        return response;
     }
 
+    // TODO: Move this methods to a function instead.
+    /**
+     * Type guard to check if the asset is an issued asset.
+     * @param asset The bridge asset.
+     * @returns True if issued asset, false otherwise.
+     */
     private isIssuedAsset(asset: XrpAsset | XrplIssuedAsset): asset is XrplIssuedAsset {
         return (asset as XrplIssuedAsset).issuer !== undefined;
     }
@@ -176,9 +194,13 @@ export class Bridge {
         doorAddress: string,
         destinationChainId: string,
         destinationAddress: string,
-        options: TransferOptions = {},
-    ): Promise<Unconfirmed<Transaction>> {
-        const gasFeeAmount = options.xrplGasFeeAmount ?? "1700000";
+        options: XrplTransferOptions = {},
+    ): Promise<TxResponse<SubmittableTransaction>> {
+        if (!this.xrpl.wallet) {
+            throw new BridgeError(BridgeErrors.MISSING_WALLET_SECRET);
+        }
+
+        const gasFeeAmount = options.gasFeeAmount ?? this.config.xrpl.gasFeeAmount;
         const amountStr = asset.amount;
 
         const Amount = this.isIssuedAsset(asset)
@@ -218,14 +240,14 @@ export class Bridge {
 
         const payment: Payment = {
             TransactionType: "Payment",
-            Account: this.xrpl.wallet!.address,
+            Account: this.xrpl.wallet.address,
             Amount,
             Destination: doorAddress,
             Memos: memos,
         };
 
         const client = this.xrpl.client;
-        const wallet = this.xrpl.wallet!;
+        const wallet = this.xrpl.wallet;
 
         if (!client.isConnected()) {
             await client.connect();
@@ -233,9 +255,7 @@ export class Bridge {
 
         const tx = await client.autofill(payment);
         const signed = wallet.sign(tx);
-        const submitTxResponse = await client.submit(signed.tx_blob);
-
-        return parseSubmitTransactionResponse(client, submitTxResponse);
+        return await client.submitAndWait(signed.tx_blob);
     }
 
     /**
@@ -262,11 +282,11 @@ export class Bridge {
         asset: XrpAsset | XrplIssuedAsset,
         destinationContractAddress: string,
         payload: string,
-        options: TransferOptions = {},
-    ): Promise<Unconfirmed<Transaction>> {
-        const gasFeeAmount = options.xrplGasFeeAmount ?? "1700000";
-        const axelarGatewayAddress = this.config.xrpl.axelarGatewayAddress;
-        const destinationChainId = this.config.evm.chainId;
+        options: XrplTransferOptions = {},
+    ): Promise<TxResponse<SubmittableTransaction>> {
+        const gasFeeAmount = options.gasFeeAmount ?? this.config.xrpl.gasFeeAmount;
+        const axelarGatewayAddress = this.config.xrpl.gatewayAddress;
+        const destinationChainId = this.config.xrplevm.chainId;
 
         const memos = [
             {
@@ -314,8 +334,6 @@ export class Bridge {
             Account: this.xrpl.wallet!.address,
             Amount,
             Destination: axelarGatewayAddress,
-            Flags: 0,
-            Fee: "12",
             Memos: memos,
         };
 
@@ -328,8 +346,6 @@ export class Bridge {
 
         const tx = await client.autofill(payment);
         const signed = wallet.sign(tx);
-        const submitTxResponse = await client.submit(signed.tx_blob);
-
-        return parseSubmitTransactionResponse(client, submitTxResponse);
+        return await client.submitAndWait(signed.tx_blob);
     }
 }

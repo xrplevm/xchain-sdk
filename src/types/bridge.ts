@@ -2,8 +2,13 @@ import { EvmAsset, XrpAsset, XrplIssuedAsset } from "../interfaces/assets";
 
 export type BridgeAsset = XrpAsset | XrplIssuedAsset | EvmAsset;
 
-export type TransferOptions = {
+export type XrplEvmTransferOptions = {
     interchainGasValue?: string;
     evmGasValue?: string;
-    xrplGasFeeAmount?: string;
 };
+
+export type XrplTransferOptions = {
+    gasFeeAmount?: string;
+};
+
+export type TransferOptions = XrplEvmTransferOptions | XrplTransferOptions;
