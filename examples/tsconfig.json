@@ -1,0 +1,19 @@
+{
+    "extends": "../tsconfig.base.json",
+    "compilerOptions": {
+        "module": "NodeNext",
+        "moduleResolution": "NodeNext",
+        "target": "ES2022",
+        "esModuleInterop": true,
+        "strict": true,
+        "outDir": "./dist",
+        "baseUrl": ".",
+        "paths": {
+            "@xrplevm/xchain-sdk": ["../dist/node"]
+        },
+        "declaration": true,
+        "declarationMap": true,
+        "emitDeclarationOnly": false
+    },
+    "include": ["./**/*.ts"]
+}
