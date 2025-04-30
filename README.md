@@ -2,31 +2,25 @@
 
 Cross-chain SDK to enable developers to bridge assets between XRPL and the XRPL EVM Sidechain programmatically.
 
----
-
 ## Table of Contents
 
--   [@xrplevm/xchain-sdk](#xrplevmxchain-sdk)
-    -   [Table of Contents](#table-of-contents)
-    -   [Installation](#installation)
-    -   [Features](#features)
-    -   [Core API](#core-api)
-        -   [`Bridge.fromConfig(network, overrides)`](#bridgefromconfignetwork-overrides)
-        -   [`bridge.transfer(asset, amount, options?)`](#bridgetransferasset-amount-options)
-        -   [`bridge.callContractWithToken(...)`](#bridgecallcontractwithtoken)
-    -   [Configuration](#configuration)
-        -   [Configuration Structure](#configuration-structure)
-        -   [Required Secrets](#required-secrets)
-        -   [Flow: How Configuration is Used](#flow-how-configuration-is-used)
-    -   [Errors](#errors)
-        -   [Common Error Classes](#common-error-classes)
-        -   [Example Error Codes](#example-error-codes)
-            -   [BridgeErrorCodes](#bridgeerrorcodes)
-            -   [XrplEvmErrorCodes](#xrplevmerrorcodes)
-            -   [XrplErrorCodes](#xrplerrorcodes)
-    -   [Examples](#examples)
-
----
+-   [Installation](#installation)
+-   [Features](#features)
+-   [Core API](#core-api)
+    -   [`Bridge.fromConfig(network, overrides)`](#bridgefromconfignetwork-overrides)
+    -   [`bridge.transfer(asset, amount, options?)`](#bridgetransferasset-amount-options)
+    -   [`bridge.callContractWithToken(...)`](#bridgecallcontractwithtoken)
+-   [Configuration](#configuration)
+    -   [Configuration Structure](#configuration-structure)
+    -   [Required Secrets](#required-secrets)
+    -   [Flow: How Configuration is Used](#flow-how-configuration-is-used)
+-   [Errors](#errors)
+    -   [Common Error Classes](#common-error-classes)
+    -   [Example Error Codes](#example-error-codes)
+        -   [BridgeErrorCodes](#bridgeerrorcodes)
+        -   [XrplEvmErrorCodes](#xrplevmerrorcodes)
+        -   [XrplErrorCodes](#xrplerrorcodes)
+-   [Examples](#examples)
 
 ## Installation
 
@@ -98,8 +92,6 @@ Execute a contract call on the destination chain with an asset transfer (GMP).
 
 Refer to the generated TypeScript definitions for full signatures and return types.
 
----
-
 ## Configuration
 
 The SDK provides sane defaults for all networks (RPC endpoints, Axelar gateway & token service addresses, chain IDs). You can override any value in fromConfig:
@@ -130,8 +122,8 @@ At the core, the SDK uses the following configuration interfaces:
 
 -   **BridgeConfig** :
 
-    -   `xrpl`: XRPL chain configuration, extends AxelarChainConfig with `seed`.
-    -   `xrplevm`: EVM sidechain configuration extends AxelarChainConfig with `privateKey`
+    -   `xrpl`: XRPL chain configuration, extends `AxelarChainConfig` with `seed`.
+    -   `xrplevm`: EVM sidechain configuration extends `AxelarChainConfig` with `privateKey`
 
 -   **BridgeConfigOptions**: Allows you to override any part of the default config for either chain.
 
@@ -145,19 +137,9 @@ The configuration enforces that you provide at least the secret (seed or private
 -   The wallet is built from the secret of the source chain, enabling signing and sending transactions.
 -   The destination chain provider is also initialized, but the wallet is only required for the source chain.
 
----
-
 ## Errors
 
 The SDK provides descriptive error classes and codes to help you handle issues programmatically. Most errors thrown are subclasses of `BridgeError` or chain-specific errors like `XrplEvmError`.
-
-### Common Error Classes
-
--   `BridgeError` — General bridge errors (e.g., missing wallet secret, invalid config)
--   `XrplEvmError` — Errors specific to the XRPL EVM sidechain
--   `XrplError` — Errors specific to the XRPL chain
-
-### Example Error Codes
 
 #### BridgeErrorCodes
 
@@ -172,7 +154,8 @@ The SDK provides descriptive error classes and codes to help you handle issues p
 
 #### XrplErrorCodes
 
--   (See `src/chains/xrpl/errors/xrpl.error-codes.ts` for a full list)
+-   `INVALID_SEED` — Invalid XRPL wallet seed provided
+-   `NO_RPC_FOR_XRPL_SOURCE` — No RPC URL provided for XRPL source
 
 You can catch and inspect these errors to provide better UX or debugging information:
 
@@ -186,8 +169,6 @@ try {
 }
 ```
 
----
-
 ## Examples
 
 See the [examples/](./examples/) directory for sample scripts:
@@ -195,5 +176,3 @@ See the [examples/](./examples/) directory for sample scripts:
 -   Transfer XRP from XRPL to EVM
 -   Transfer EVM tokens to XRPL
 -   Call contracts with token transfers
-
----
