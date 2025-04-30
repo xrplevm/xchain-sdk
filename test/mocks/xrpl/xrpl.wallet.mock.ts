@@ -1,4 +1,4 @@
-import { createMock, MethodMock, mockify } from "../../mock";
+import { createMock, MethodMock, mockify } from "../../utils";
 
 // Mock for XrplWallet instance
 export const XrplWalletMock = mockify({

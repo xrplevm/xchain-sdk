@@ -1,4 +1,4 @@
-import { createMock, MethodMock, mockify } from "../../mock";
+import { createMock, MethodMock } from "../../utils";
 
 // Mock for ethers.JsonRpcProvider
 export const EvmProviderMock = createMock({

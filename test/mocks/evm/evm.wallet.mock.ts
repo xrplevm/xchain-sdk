@@ -1,4 +1,4 @@
-import { createMock, MethodMock, mockify } from "../../mock";
+import { createMock, MethodMock, mockify } from "../../utils";
 
 // Mock for ethers.Wallet instance
 export const EvmWalletMock = mockify({

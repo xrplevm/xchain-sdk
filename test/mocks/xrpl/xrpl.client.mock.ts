@@ -1,4 +1,4 @@
-import { createMock, MethodMock, mockify } from "../../mock";
+import { createMock, MethodMock, mockify } from "../../utils";
 
 // Mock the connection object
 export const XrplClientConnectionMock = mockify({

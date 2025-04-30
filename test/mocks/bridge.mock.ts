@@ -1,5 +1,5 @@
-import { BridgeConfig } from "../../src/interfaces";
-import { createMock, MethodMock, mockify } from "../mock";
+import { BridgeConfig } from "../../src/bridge/config";
+import { createMock, MethodMock, mockify } from "../utils";
 import { EvmConnectionMock } from "./evm";
 import { XrplConnectionMock } from "./xrpl";
 
@@ -9,17 +9,16 @@ export const BridgeMock = createMock({
 });
 
 export const BridgeConfigMock = mockify<BridgeConfig>({
-    network: "devnet",
     xrpl: {
         providerUrl: "wss://s.devnet.rippletest.net:51233",
         chainId: "100",
-        axelarGatewayAddress: "rNrjh1KGZk2jBR3wPfAQnoidtFFYQKbQn2",
+        gatewayAddress: "rNrjh1KGZk2jBR3wPfAQnoidtFFYQKbQn2",
         interchainTokenServiceAddress: "rNrjh1KGZk2jBR3wPfAQnoidtFFYQKbQn2",
     },
-    evm: {
+    xrplevm: {
         providerUrl: "https://rpc.xrplevm.org",
         chainId: "1440002",
-        axelarGatewayAddress: "0xF128c84c3326727c3e155168daAa4C0156B87AD1",
+        gatewayAddress: "0xF128c84c3326727c3e155168daAa4C0156B87AD1",
         interchainTokenServiceAddress: "0x1a7580C2ef5D485E069B7cf1DF9f6478603024d3",
     },
 });

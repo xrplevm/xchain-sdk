@@ -1,15 +1,21 @@
 import { Contract, ethers } from "ethers";
-import { interchainERC20Abi, interchainTokenServiceAbi } from "./contracts";
-import { BridgeErrors, ProviderError, EvmError, EvmErrors, BridgeError } from "../errors";
-import type { BridgeAsset, TransferOptions, XrplEvmTransferOptions, XrplTransferOptions } from "../types/bridge";
-import { EvmAsset, XrpAsset, XrplIssuedAsset } from "../interfaces/assets";
-import { NetworkType } from "../types/network";
-import { translateEvmAddress, translateXrpAddress } from "./translators";
-import { convertCurrencyCode } from "./translators/currency-code";
-import { convertStringToHex, Payment, SubmittableTransaction, TxResponse, xrpToDrops } from "xrpl";
-import deepmerge from "../../test/mock/utils/deepmerge";
-import { BridgeConfig, BridgeOptions, DEFAULT_CONFIG, XrplChainConfig, XrplEvmChainConfig } from "../config";
-import { XrplConnection, XrplEvmConnection } from "./connections";
+import { convertStringToHex, Payment, SubmittableTransaction, TxResponse } from "xrpl";
+import deepmerge from "../../test/utils/utils/deepmerge";
+import { DEFAULT_BRIDGE_CONFIG } from "./config/default.config";
+import { BridgeConfig, BridgeConfigOptions } from "./config";
+import { XrplTransferOptions } from "./types/transfer";
+import { XrplEvmTransferOptions } from "./types/transfer";
+import { TransferOptions } from "./types/transfer";
+import { BridgeAsset } from "./types";
+import { NetworkType } from "../common/network/types";
+import { XrpAsset, XrplChainConfig, XrplConnection, XrplIssuedAsset } from "../chains/xrpl";
+import { EvmAsset, XrplEvmChainConfig, XrplEvmConnection, XrplEvmError, XrplEvmErrorCodes } from "../chains/xrplevm";
+import { interchainERC20Abi } from "../chains/xrplevm/contracts/interchain-erc20";
+import { interchainTokenServiceAbi } from "../chains/xrplevm/contracts/interchain-token-service";
+import { isEvmAsset } from "../chains/xrplevm/utils";
+import { translateEvmAddress } from "../chains/xrplevm/translators/address";
+import { translateXrpAddress } from "../chains/xrpl/translators";
+import { BridgeError, BridgeErrorCodes } from "./errors";
 
 export class Bridge {
     private config: BridgeConfig;
@@ -28,8 +34,8 @@ export class Bridge {
      * @param overrides Optional overrides for bridge options.
      * @returns A configured Bridge instance.
      */
-    static fromConfig(network: NetworkType, overrides?: BridgeOptions): Bridge {
-        const networkConfig = DEFAULT_CONFIG[network];
+    static fromConfig(network: NetworkType, overrides?: BridgeConfigOptions): Bridge {
+        const networkConfig = DEFAULT_BRIDGE_CONFIG[network];
 
         const xrplConfig: XrplChainConfig = overrides?.xrpl ? deepmerge(networkConfig.xrpl, overrides.xrpl) : networkConfig.xrpl;
         const xrplevmConfig: XrplEvmChainConfig = overrides?.xrplevm
@@ -37,28 +43,18 @@ export class Bridge {
             : networkConfig.xrplevm;
 
         const config: BridgeConfig = {
-            network,
             xrpl: xrplConfig,
             xrplevm: xrplevmConfig,
         };
 
         if (!xrplConfig.seed && !xrplevmConfig.privateKey) {
-            throw new BridgeError(BridgeErrors.MISSING_WALLET_SECRET);
+            throw new BridgeError(BridgeErrorCodes.MISSING_WALLET_SECRET);
         }
 
         const xrplConnection = XrplConnection.create(xrplConfig.providerUrl, xrplConfig.seed);
         const xrplevmConnection = XrplEvmConnection.create(xrplevmConfig.providerUrl, xrplevmConfig.privateKey);
 
         return new Bridge(config, xrplConnection, xrplevmConnection);
-    }
-
-    /**
-     * Type guard to check if the asset is an EVM asset.
-     * @param a The bridge asset.
-     * @returns True if EVM asset, false otherwise.
-     */
-    private isEvmAsset(a: BridgeAsset): a is EvmAsset {
-        return (a as EvmAsset).address !== undefined;
     }
 
     /**
@@ -69,7 +65,7 @@ export class Bridge {
     private async autofillErc20Info(asset: EvmAsset): Promise<EvmAsset> {
         const provider = this.evm.provider;
         if (!provider) {
-            throw new ProviderError(EvmErrors.RPC_UNAVAILABLE, { asset });
+            throw new XrplEvmError(XrplEvmErrorCodes.RPC_UNAVAILABLE, { asset });
         }
 
         const tokenContract = new ethers.Contract(asset.address, interchainERC20Abi, provider);
@@ -81,7 +77,7 @@ export class Bridge {
             try {
                 decimals = await tokenContract.decimals();
             } catch (err: any) {
-                throw new EvmError(EvmErrors.TX_NOT_MINED, { original: err });
+                throw new XrplEvmError(XrplEvmErrorCodes.TX_NOT_MINED, { original: err });
             }
         }
 
@@ -89,7 +85,7 @@ export class Bridge {
             try {
                 tokenId = await tokenContract.interchainTokenId();
             } catch (err: any) {
-                throw new EvmError(EvmErrors.TX_NOT_MINED, { original: err });
+                throw new XrplEvmError(XrplEvmErrorCodes.TX_NOT_MINED, { original: err });
             }
         }
 
@@ -104,7 +100,7 @@ export class Bridge {
      * @returns A promise resolving to an unconfirmed transaction object.
      */
     async transfer(asset: BridgeAsset, destinationAddress: string, options: TransferOptions = {}): Promise<any> {
-        if (this.isEvmAsset(asset)) {
+        if (isEvmAsset(asset)) {
             const interchainTokenServiceAddress = this.config.xrplevm.interchainTokenServiceAddress;
             const destinationChainId = this.config.xrpl.chainId;
             return this.transferEvmToXrpl(
@@ -169,16 +165,6 @@ export class Bridge {
         return response;
     }
 
-    // TODO: Move this methods to a function instead.
-    /**
-     * Type guard to check if the asset is an issued asset.
-     * @param asset The bridge asset.
-     * @returns True if issued asset, false otherwise.
-     */
-    private isIssuedAsset(asset: XrpAsset | XrplIssuedAsset): asset is XrplIssuedAsset {
-        return (asset as XrplIssuedAsset).issuer !== undefined;
-    }
-
     /**
      * Handles transfer from XRPL to EVM.
      * @param asset The XRPL asset to transfer (native or issued).
@@ -197,19 +183,10 @@ export class Bridge {
         options: XrplTransferOptions = {},
     ): Promise<TxResponse<SubmittableTransaction>> {
         if (!this.xrpl.wallet) {
-            throw new BridgeError(BridgeErrors.MISSING_WALLET_SECRET);
+            throw new BridgeError(BridgeErrorCodes.MISSING_WALLET_SECRET);
         }
 
         const gasFeeAmount = options.gasFeeAmount ?? this.config.xrpl.gasFeeAmount;
-        const amountStr = asset.amount;
-
-        const Amount = this.isIssuedAsset(asset)
-            ? {
-                  currency: convertCurrencyCode(asset.symbol!),
-                  value: xrpToDrops(amountStr),
-                  issuer: asset.issuer!,
-              }
-            : xrpToDrops(amountStr);
 
         const memos = [
             {
@@ -241,7 +218,7 @@ export class Bridge {
         const payment: Payment = {
             TransactionType: "Payment",
             Account: this.xrpl.wallet.address,
-            Amount,
+            Amount: asset,
             Destination: doorAddress,
             Memos: memos,
         };
@@ -265,7 +242,7 @@ export class Bridge {
      */
     protected getInterchainTokenServiceContract(address: string): Contract {
         if (!this.evm.signer) {
-            throw new ProviderError(BridgeErrors.NO_EVM_SIGNER);
+            throw new XrplEvmError(XrplEvmErrorCodes.NO_EVM_SIGNER);
         }
         return new Contract(address, interchainTokenServiceAbi, this.evm.signer);
     }
@@ -321,18 +298,10 @@ export class Bridge {
             },
         ];
 
-        const Amount = this.isIssuedAsset(asset)
-            ? {
-                  currency: convertCurrencyCode(asset.symbol!),
-                  value: asset.amount,
-                  issuer: asset.issuer!,
-              }
-            : xrpToDrops(asset.amount);
-
         const payment: Payment = {
             TransactionType: "Payment",
             Account: this.xrpl.wallet!.address,
-            Amount,
+            Amount: asset,
             Destination: axelarGatewayAddress,
             Memos: memos,
         };

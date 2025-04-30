@@ -1,6 +1,6 @@
-import { createMock, MethodMock } from "../../mock";
+import { createMock, MethodMock } from "../../utils";
 import { XrplClientMock } from "./xrpl.client.mock";
-import { XrplWalletMock, XrplWalletConstructorMock } from "./xrpl.wallet.mock";
+import { XrplWalletMock } from "./xrpl.wallet.mock";
 
 // Mock for XrplConnection static create
 export const XrplConnectionMock = createMock({

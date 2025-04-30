@@ -1,6 +1,6 @@
-import { createMock, MethodMock } from "../../mock";
 import { EvmProviderMock } from "./evm.provider.mock";
-import { EvmWalletMock, EvmWalletConstructorMock } from "./evm.wallet.mock";
+import { EvmWalletMock } from "./evm.wallet.mock";
+import { createMock, MethodMock } from "../../utils";
 
 // Mock for EvmConnection static create
 export const EvmConnectionMock = createMock({
