@@ -1,4 +1,4 @@
-import { Contract, ethers } from "ethers";
+import { AbiCoder, Contract, ethers } from "ethers";
 import { convertStringToHex, Payment, SubmittableTransaction, TxResponse } from "xrpl";
 import deepmerge from "../../test/utils/utils/deepmerge";
 import { DEFAULT_BRIDGE_CONFIG } from "./config/default.config";
@@ -8,7 +8,7 @@ import { XrplEvmTransferOptions } from "./types/transfer";
 import { TransferOptions } from "./types/transfer";
 import { BridgeAsset } from "./types";
 import { NetworkType } from "../common/network/types";
-import { XrpAsset, XrplChainConfig, XrplConnection, XrplIssuedAsset } from "../chains/xrpl";
+import { isIssuedAsset, XrpAsset, XrplChainConfig, XrplConnection, XrplIssuedAsset } from "../chains/xrpl";
 import { XrplEvmAsset, XrplEvmChainConfig, XrplEvmConnection, XrplEvmError, XrplEvmErrorCodes } from "../chains/xrplevm";
 import { interchainERC20Abi } from "../chains/xrplevm/contracts/interchain-erc20";
 import { interchainTokenServiceAbi } from "../chains/xrplevm/contracts/interchain-token-service";
@@ -189,9 +189,7 @@ export class Bridge {
             { gasValue },
         );
 
-        const response = await tx.wait();
-
-        return response;
+        return await tx.wait();
     }
 
     /**
@@ -239,7 +237,7 @@ export class Bridge {
             {
                 Memo: {
                     MemoType: convertStringToHex("gas_fee_amount"),
-                    MemoData: convertStringToHex(gasFeeAmount),
+                    MemoData: convertStringToHex(isIssuedAsset(asset) ? "0" : gasFeeAmount),
                 },
             },
         ];
@@ -290,9 +288,10 @@ export class Bridge {
         payload: string,
         options: XrplTransferOptions = {},
     ): Promise<TxResponse<SubmittableTransaction>> {
-        const gasFeeAmount = options.gasFeeAmount ?? this.config.xrpl.gasFeeAmount;
         const axelarGatewayAddress = this.config.xrpl.gatewayAddress;
         const destinationChainId = this.config.xrplevm.chainId;
+
+        const encodedPayload = AbiCoder.defaultAbiCoder().encode(["string"], [payload]);
 
         const memos = [
             {
@@ -316,13 +315,13 @@ export class Bridge {
             {
                 Memo: {
                     MemoType: convertStringToHex("gas_fee_amount"),
-                    MemoData: convertStringToHex(gasFeeAmount),
+                    MemoData: convertStringToHex(options.gasFeeAmount ?? this.config.xrpl.gasFeeAmount),
                 },
             },
             {
                 Memo: {
                     MemoType: convertStringToHex("payload"),
-                    MemoData: convertStringToHex(payload),
+                    MemoData: encodedPayload.slice(2),
                 },
             },
         ];

@@ -2,10 +2,10 @@
     "name": "@xrplevm/xchain-sdk",
     "version": "0.0.0",
     "description": "XRPL <-> XRPL EVM Sidechain SDK",
-    "main": "dist/node/index.js",
-    "module": "dist/browser/index.js",
-    "browser": "dist/browser/index.js",
-    "types": "dist/node/index.d.ts",
+    "main": "dist/node/src/index.js",
+    "module": "dist/browser/src/index.js",
+    "browser": "dist/browser/src/index.js",
+    "types": "dist/node/src/index.d.ts",
     "files": [
         "dist"
     ],

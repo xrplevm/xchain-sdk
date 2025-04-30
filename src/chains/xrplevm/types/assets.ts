@@ -2,6 +2,6 @@ export interface XrplEvmAsset {
     address: string;
     tokenId?: string;
     symbol?: string;
-    decimals?: number;
+    decimals: number;
     amount: string;
 }
