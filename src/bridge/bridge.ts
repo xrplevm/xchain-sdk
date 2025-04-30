@@ -93,13 +93,42 @@ export class Bridge {
     }
 
     /**
+     * Transfers an XRP or Issued Asset from XRPL to EVM.
+     * @param asset The XRPL asset to transfer (native XRP or issued asset).
+     * @param destinationAddress The destination address on the EVM chain.
+     * @param options Optional transfer parameters for XRPL transactions.
+     * @returns A promise resolving to the XRPL transaction response.
+     */
+    async transfer(
+        asset: XrpAsset | XrplIssuedAsset,
+        destinationAddress: string,
+        options?: XrplTransferOptions,
+    ): Promise<TxResponse<SubmittableTransaction>>;
+    /**
+     * Transfers an EVM Asset from EVM to XRPL.
+     * @param asset The EVM asset to transfer.
+     * @param destinationAddress The destination address on the XRPL chain.
+     * @param options Optional transfer parameters for EVM transactions.
+     * @returns A promise resolving to the EVM transaction receipt, or null if not mined.
+     */
+    async transfer(
+        asset: EvmAsset,
+        destinationAddress: string,
+        options?: XrplEvmTransferOptions,
+    ): Promise<ethers.TransactionReceipt | null>;
+    /**
      * Transfers an asset between EVM and XRPL chains.
+     * Implementation signature for internal use.
      * @param asset The asset to transfer (EvmAsset or XrpAsset/XrplIssuedAsset).
      * @param destinationAddress The destination address on the target chain.
      * @param options Optional transfer parameters (e.g., interchainGasValue, txValue, gasFeeAmount).
-     * @returns A promise resolving to an unconfirmed transaction object.
+     * @returns A promise resolving to the transaction result based on the asset type.
      */
-    async transfer(asset: BridgeAsset, destinationAddress: string, options: TransferOptions = {}): Promise<any> {
+    async transfer(
+        asset: BridgeAsset,
+        destinationAddress: string,
+        options: TransferOptions = {},
+    ): Promise<TxResponse<SubmittableTransaction> | ethers.TransactionReceipt | null> {
         if (isEvmAsset(asset)) {
             const interchainTokenServiceAddress = this.config.xrplevm.interchainTokenServiceAddress;
             const destinationChainId = this.config.xrpl.chainId;
@@ -138,7 +167,7 @@ export class Bridge {
         dstChainId: string,
         dstAddr: string,
         options: XrplEvmTransferOptions = {},
-    ): Promise<any> {
+    ): Promise<ethers.TransactionReceipt | null> {
         const interchainGasValue = ethers.parseEther(options.interchainGasValue ?? this.config.xrplevm.interchainGasValue);
         const gasValue = ethers.parseEther(options.evmGasValue ?? this.config.xrplevm.gasValue);
         const filledAsset = await this.autofillErc20Info(asset);
