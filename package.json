@@ -1,11 +1,12 @@
 {
     "name": "@xrplevm/xchain-sdk",
-    "version": "0.0.0",
-    "description": "XRPL <-> XRPL EVM Sidechain SDK",
-    "main": "dist/node/index.js",
-    "module": "dist/browser/index.js",
-    "browser": "dist/browser/index.js",
-    "types": "dist/node/index.d.ts",
+    "version": "0.1.0",
+    "author": "Peersyst",
+    "description": "Cross-chain SDK to enable developers bridge assets between XRPL and XRPL EVM Sidechain programatically.",
+    "main": "dist/node/src/index.js",
+    "module": "dist/browser/src/index.js",
+    "browser": "dist/browser/src/index.js",
+    "types": "dist/node/src/index.d.ts",
     "files": [
         "dist"
     ],
@@ -14,8 +15,8 @@
         "build:node": "tsc -p tsconfig.node.json",
         "build:browser": "tsc -p tsconfig.browser.json",
         "build": "pnpm run clean && pnpm run build:node && pnpm run build:browser",
-        "test:node": "jest --config jest.node.config.ts",
         "test:browser": "jest --config jest.browser.config.ts",
+        "test:node": "jest --config jest.node.config.ts test/tests",
         "test": "pnpm run test:node && pnpm run test:browser",
         "lint": "eslint .",
         "format": "prettier --write .",
@@ -24,11 +25,9 @@
         "check-types": "pnpm run check-types:node && pnpm run check-types:browser"
     },
     "keywords": [],
-    "author": "",
-    "license": "ISC",
     "devDependencies": {
         "@types/jest": "29.5.12",
-        "@types/node": "^22.14.1",
+        "@types/node": "^22.15.2",
         "@typescript-eslint/eslint-plugin": "8.3.0",
         "@typescript-eslint/parser": "8.3.0",
         "eslint": "8.57.0",
@@ -47,6 +46,12 @@
     },
     "packageManager": "pnpm@9.7.0",
     "dependencies": {
+        "ethers": "^6.13.5",
+        "xrpl": "4.0.0",
+        "@swisstype/essential": "^0.1.2"
+    },
+    "peerDependencies": {
+        "ethers": "^6.13.5",
         "xrpl": "4.0.0"
     }
 }

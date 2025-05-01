@@ -17,5 +17,5 @@
         "experimentalDecorators": true,
         "removeComments": true
     },
-    "exclude": ["test", "dist"]
+    "exclude": ["test", "dist", "examples"]
 }

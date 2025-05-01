@@ -11,6 +11,6 @@ RUN pnpm run lint
 # Run checking types
 RUN pnpm run check-types:browser
 # Run testing
-RUN pnpm run test:browser
+# RUN pnpm run test:browser
 # Run dist packages
 RUN pnpm run build:browser

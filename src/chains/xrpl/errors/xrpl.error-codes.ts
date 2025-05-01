@@ -1,0 +1,4 @@
+export enum XrplErrorCodes {
+    INVALID_SEED = "INVALID_SEED",
+    NO_RPC_FOR_XRPL_SOURCE = "NO_RPC_FOR_XRPL_SOURCE",
+}
