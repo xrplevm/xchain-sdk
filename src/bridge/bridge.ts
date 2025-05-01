@@ -190,10 +190,11 @@ export class Bridge {
         doorAddress: string,
         dstChainId: string,
         dstAddr: string,
-        options: XrplEvmTransferOptions = {},
+        options: XrplEvmTransferOptions = { interchainGasValue: "0" },
     ): Promise<ethers.TransactionReceipt | null> {
-        const interchainGasValue = ethers.parseEther(options.interchainGasValue ?? this.config.xrplevm.interchainGasValue);
-        const gasValue = ethers.parseEther(options.evmGasValue ?? this.config.xrplevm.gasValue);
+        const interchainGasValue = options.interchainGasValue ? ethers.parseEther(options.interchainGasValue) : "0";
+        const gasValue = options.gasValue ? ethers.parseEther(options.gasValue) : undefined;
+        const gasLimit = options.gasLimit ? ethers.parseEther(options.gasLimit) : undefined;
         const filledAsset = await this.autofillErc20Info(asset);
 
         const decimals = filledAsset.decimals;
@@ -210,7 +211,7 @@ export class Bridge {
             scaledAmount.toString(),
             "0x",
             interchainGasValue,
-            { gasValue },
+            { gasValue, gasLimit },
         );
 
         return await tx.wait();

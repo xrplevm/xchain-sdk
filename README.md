@@ -67,8 +67,9 @@ The `options` object differs depending on the transfer direction. The most relev
     -   _(See `XrplTransferOptions` for all options)_
 
 -   **EVM → XRPL:**
-    -   `interchainGasValue` (optional): Gas value for the interchain transfer (default from config)
-    -   `evmGasValue` (optional): Gas value for the EVM transaction (default from config)
+    -   `interchainGasValue` (optional): Gas value (in wei, as a string) for the interchain part of the transfer. Defaults to "0" if not provided.
+    -   `gasValue` (optional): Gas price (in wei, as a string) for the EVM transaction.
+    -   `gasLimit` (optional): Gas limit (as a string) for the EVM transaction.
     -   _(See `XrplEvmTransferOptions` for all options)_
 
 Refer to the generated TypeScript definitions for the full list of supported options and types for each direction:
@@ -104,7 +105,7 @@ The SDK provides sane defaults for all networks (RPC endpoints, Axelar gateway &
 
 ```ts
 Bridge.fromConfig("mainnet", {
-    evm: {
+    xrplevm: {
         providerUrl: "https://my.custom.rpc",
         privateKey: process.env.EVM_KEY,
     },

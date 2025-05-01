@@ -1,6 +1,7 @@
 export type XrplEvmTransferOptions = {
     interchainGasValue?: string;
-    evmGasValue?: string;
+    gasValue?: string;
+    gasLimit?: string;
 };
 
 export type XrplTransferOptions = {
