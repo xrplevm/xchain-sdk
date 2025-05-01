@@ -1,10 +1,6 @@
 import { Bridge } from "../../src/bridge/bridge";
-import { NetworkType } from "../../src/common/network/types";
-import { BridgeError, BridgeErrorCodes } from "../../src/bridge/errors";
-import { EvmConnectionMock } from "../mocks/evm/evm-connection.mock";
-import { XrplConnectionMock } from "../mocks/xrpl/xrpl-connection.mock";
-import { XRPL_TESTNET_CONFIG } from "../../src/chains/xrpl";
-import { XRPLEVM_TESTNET_CONFIG } from "../../src/chains/xrplevm";
+import { XRPL_TESTNET_CONFIG, XrplChainConfig } from "../../src/chains/xrpl";
+import { XRPLEVM_TESTNET_CONFIG, XrplEvmChainConfig } from "../../src/chains/xrplevm";
 
 describe("Bridge.fromConfig Overrides", () => {
     describe("Connection overrides", () => {
@@ -46,14 +42,15 @@ describe("Bridge.fromConfig Overrides", () => {
                 xrpl: { seed: "sEdVwXN5PtffKz9RZHv5EQVjxbpttza" },
             });
             const bridgeAny = bridge as any;
-            // Compare all config except seed (which is not in XRPL_TESTNET_CONFIG)
             Object.entries(XRPL_TESTNET_CONFIG).forEach(([key, value]) => {
                 expect(bridgeAny.config.xrpl[key]).toBe(value);
+                // Type check
+                expect(typeof bridgeAny.config.xrpl[key]).toBe(typeof value);
             });
         });
 
-        it("should override all XRPL config parameters", () => {
-            const overrides = {
+        it("should override all XRPL config parameters and keep types", () => {
+            const overrides: XrplChainConfig = {
                 providerUrl: "wss://custom.url",
                 chainId: "custom-chain",
                 gatewayAddress: "rCustomGateway",
@@ -67,6 +64,8 @@ describe("Bridge.fromConfig Overrides", () => {
             const bridgeAny = bridge as any;
             Object.entries(overrides).forEach(([key, value]) => {
                 expect(bridgeAny.config.xrpl[key]).toBe(value);
+                // Type check
+                expect(typeof bridgeAny.config.xrpl[key]).toBe(typeof (overrides as any)[key]);
             });
         });
     });
@@ -77,21 +76,22 @@ describe("Bridge.fromConfig Overrides", () => {
                 xrplevm: { privateKey: "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef" },
             });
             const bridgeAny = bridge as any;
-            // Compare all config except privateKey (which is not in XRPLEVM_TESTNET_CONFIG)
             Object.entries(XRPLEVM_TESTNET_CONFIG).forEach(([key, value]) => {
                 expect(bridgeAny.config.xrplevm[key]).toBe(value);
+                // Type check
+                expect(typeof bridgeAny.config.xrplevm[key]).toBe(typeof value);
             });
         });
 
-        it("should override all XRPLEVM config parameters", () => {
-            const overrides = {
+        it("should override all XRPLEVM config parameters and keep types", () => {
+            const overrides: XrplEvmChainConfig = {
                 providerUrl: "https://custom-evm.url",
                 chainId: "custom-evm-chain",
                 gatewayAddress: "0xCustomGateway",
                 interchainTokenServiceAddress: "0xCustomInterchain",
                 interchainGasValue: "12345",
                 gasValue: "67890",
-                privateKey: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdef",
+                privateKey: "0x5b726ed6e1d4fdeec6ec7526d71c96218f6ebe4d7b10928732c49a242dd6bea9",
             };
             const bridge = Bridge.fromConfig("testnet", {
                 xrplevm: overrides,
@@ -99,6 +99,8 @@ describe("Bridge.fromConfig Overrides", () => {
             const bridgeAny = bridge as any;
             Object.entries(overrides).forEach(([key, value]) => {
                 expect(bridgeAny.config.xrplevm[key]).toBe(value);
+                // Type check
+                expect(typeof bridgeAny.config.xrplevm[key]).toBe(typeof (overrides as any)[key]);
             });
         });
     });
