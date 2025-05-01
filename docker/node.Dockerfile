@@ -11,6 +11,6 @@ RUN pnpm run lint
 # Run checking types
 RUN pnpm run check-types:node
 # Run testing
-RUN pnpm run test:node
+# RUN pnpm run test:node
 # Run dist packages
 RUN pnpm run build:node

@@ -1,7 +1,8 @@
 {
     "name": "@xrplevm/xchain-sdk",
-    "version": "0.0.0",
-    "description": "XRPL <-> XRPL EVM Sidechain SDK",
+    "version": "0.1.0",
+    "author": "Peersyst",
+    "description": "Cross-chain SDK to enable developers bridge assets between XRPL and XRPL EVM Sidechain programatically.",
     "main": "dist/node/src/index.js",
     "module": "dist/browser/src/index.js",
     "browser": "dist/browser/src/index.js",
@@ -24,8 +25,6 @@
         "check-types": "pnpm run check-types:node && pnpm run check-types:browser"
     },
     "keywords": [],
-    "author": "",
-    "license": "ISC",
     "devDependencies": {
         "@types/jest": "29.5.12",
         "@types/node": "^22.15.2",
@@ -47,7 +46,11 @@
     },
     "packageManager": "pnpm@9.7.0",
     "dependencies": {
-        "@swisstype/essential": "^0.1.2",
+        "ethers": "^6.13.5",
+        "xrpl": "4.0.0",
+        "@swisstype/essential": "^0.1.2"
+    },
+    "peerDependencies": {
         "ethers": "^6.13.5",
         "xrpl": "4.0.0"
     }
