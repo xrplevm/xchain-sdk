@@ -1,4 +1,5 @@
 import { Bridge } from "../../src/bridge/bridge";
+import { BridgeConfig } from "../../src/bridge/config";
 import { XRPL_TESTNET_CONFIG, XrplChainConfig } from "../../src/chains/xrpl";
 import { XRPLEVM_TESTNET_CONFIG, XrplEvmChainConfig } from "../../src/chains/xrplevm";
 
@@ -42,6 +43,10 @@ describe("Bridge.fromConfig Overrides", () => {
                 xrpl: { seed: "sEdVwXN5PtffKz9RZHv5EQVjxbpttza" },
             });
             const bridgeAny = bridge as any;
+
+            // Compile-time type check
+            const config: BridgeConfig = bridgeAny.config;
+
             Object.entries(XRPL_TESTNET_CONFIG).forEach(([key, value]) => {
                 expect(bridgeAny.config.xrpl[key]).toBe(value);
                 // Type check
@@ -62,6 +67,9 @@ describe("Bridge.fromConfig Overrides", () => {
                 xrpl: overrides,
             });
             const bridgeAny = bridge as any;
+            // Compile-time type check
+            const config: BridgeConfig = bridgeAny.config;
+
             Object.entries(overrides).forEach(([key, value]) => {
                 expect(bridgeAny.config.xrpl[key]).toBe(value);
                 // Type check
@@ -76,6 +84,9 @@ describe("Bridge.fromConfig Overrides", () => {
                 xrplevm: { privateKey: "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef" },
             });
             const bridgeAny = bridge as any;
+            // Compile-time type check
+            const config: BridgeConfig = bridgeAny.config;
+
             Object.entries(XRPLEVM_TESTNET_CONFIG).forEach(([key, value]) => {
                 expect(bridgeAny.config.xrplevm[key]).toBe(value);
                 // Type check
@@ -96,7 +107,11 @@ describe("Bridge.fromConfig Overrides", () => {
             const bridge = Bridge.fromConfig("testnet", {
                 xrplevm: overrides,
             });
+
             const bridgeAny = bridge as any;
+            // Compile-time type check
+            const config: BridgeConfig = bridgeAny.config;
+
             Object.entries(overrides).forEach(([key, value]) => {
                 expect(bridgeAny.config.xrplevm[key]).toBe(value);
                 // Type check
