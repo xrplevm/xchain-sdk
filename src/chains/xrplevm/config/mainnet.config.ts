@@ -6,6 +6,6 @@ export const XRPLEVM_MAINNET_CONFIG: XrplEvmChainConfig = {
     chainId: "<AXELAR_MAINNET_CHAIN_ID>",
     gatewayAddress: "<MAINNET_AXELAR_GATEWAY_PLACEHOLDER>",
     interchainTokenServiceAddress: "<MAINNET_INTERCHAIN_TOKEN_SERVICE_PLACEHOLDER>",
-    interchainGasValue: "0",
-    gasValue: "0",
+    interchainGasValue: "0.2",
+    gasValue: "0.2",
 };
