@@ -10,20 +10,18 @@ describe("Bridge.fromConfig Overrides", () => {
                 xrpl: { seed: "sEdVwXN5PtffKz9RZHv5EQVjxbpttza" },
             });
             expect(bridge).toBeInstanceOf(Bridge);
-            const bridgeAny = bridge as any;
 
-            expect(bridgeAny.xrpl.wallet).toBeDefined();
-            expect(bridgeAny.evm.signer).toBeUndefined();
+            expect(bridge.xrplConnection.wallet).toBeDefined();
+            expect(bridge.xrplevmConnection.signer).toBeUndefined();
         });
         it("should create just a xrplevm wallet", () => {
             const bridge = Bridge.fromConfig("mainnet", {
                 xrplevm: { privateKey: "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef" },
             });
             expect(bridge).toBeInstanceOf(Bridge);
-            const bridgeAny = bridge as any;
 
-            expect(bridgeAny.xrpl.wallet).toBeUndefined();
-            expect(bridgeAny.evm.signer).toBeDefined();
+            expect(bridge.xrplConnection.wallet).toBeUndefined();
+            expect(bridge.xrplevmConnection.signer).toBeDefined();
         });
         it("should create both xrpl and xrplevm wallets", () => {
             const bridge = Bridge.fromConfig("mainnet", {
@@ -31,9 +29,8 @@ describe("Bridge.fromConfig Overrides", () => {
                 xrplevm: { privateKey: "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef" },
             });
             expect(bridge).toBeInstanceOf(Bridge);
-            const bridgeAny = bridge as any;
-            expect(bridgeAny.xrpl.wallet).toBeDefined();
-            expect(bridgeAny.evm.signer).toBeDefined();
+            expect(bridge.xrplConnection.wallet).toBeDefined();
+            expect(bridge.xrplevmConnection.signer).toBeDefined();
         });
     });
 
@@ -42,15 +39,13 @@ describe("Bridge.fromConfig Overrides", () => {
             const bridge = Bridge.fromConfig("testnet", {
                 xrpl: { seed: "sEdVwXN5PtffKz9RZHv5EQVjxbpttza" },
             });
-            const bridgeAny = bridge as any;
 
             // Compile-time type check
-            const config: BridgeConfig = bridgeAny.config;
+            const config: BridgeConfig = bridge.config;
 
             Object.entries(XRPL_TESTNET_CONFIG).forEach(([key, value]) => {
-                expect(bridgeAny.config.xrpl[key]).toBe(value);
-                // Type check
-                expect(typeof bridgeAny.config.xrpl[key]).toBe(typeof value);
+                expect(bridge.config.xrpl[key]).toBe(value);
+                expect(typeof bridge.config.xrpl[key]).toBe(typeof value);
             });
         });
 
@@ -66,14 +61,13 @@ describe("Bridge.fromConfig Overrides", () => {
             const bridge = Bridge.fromConfig("testnet", {
                 xrpl: overrides,
             });
-            const bridgeAny = bridge as any;
+
             // Compile-time type check
-            const config: BridgeConfig = bridgeAny.config;
+            const config: BridgeConfig = bridge.config;
 
             Object.entries(overrides).forEach(([key, value]) => {
-                expect(bridgeAny.config.xrpl[key]).toBe(value);
-                // Type check
-                expect(typeof bridgeAny.config.xrpl[key]).toBe(typeof (overrides as any)[key]);
+                expect(bridge.config.xrpl[key]).toBe(value);
+                expect(typeof bridge.config.xrpl[key]).toBe(typeof (overrides as any)[key]);
             });
         });
     });
@@ -83,14 +77,13 @@ describe("Bridge.fromConfig Overrides", () => {
             const bridge = Bridge.fromConfig("testnet", {
                 xrplevm: { privateKey: "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef" },
             });
-            const bridgeAny = bridge as any;
+
             // Compile-time type check
-            const config: BridgeConfig = bridgeAny.config;
+            const config: BridgeConfig = bridge.config;
 
             Object.entries(XRPLEVM_TESTNET_CONFIG).forEach(([key, value]) => {
-                expect(bridgeAny.config.xrplevm[key]).toBe(value);
-                // Type check
-                expect(typeof bridgeAny.config.xrplevm[key]).toBe(typeof value);
+                expect(bridge.config.xrplevm[key]).toBe(value);
+                expect(typeof bridge.config.xrplevm[key]).toBe(typeof value);
             });
         });
 
@@ -108,14 +101,12 @@ describe("Bridge.fromConfig Overrides", () => {
                 xrplevm: overrides,
             });
 
-            const bridgeAny = bridge as any;
             // Compile-time type check
-            const config: BridgeConfig = bridgeAny.config;
+            const config: BridgeConfig = bridge.config;
 
             Object.entries(overrides).forEach(([key, value]) => {
-                expect(bridgeAny.config.xrplevm[key]).toBe(value);
-                // Type check
-                expect(typeof bridgeAny.config.xrplevm[key]).toBe(typeof (overrides as any)[key]);
+                expect(bridge.config.xrplevm[key]).toBe(value);
+                expect(typeof bridge.config.xrplevm[key]).toBe(typeof (overrides as any)[key]);
             });
         });
     });
