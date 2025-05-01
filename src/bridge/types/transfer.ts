@@ -4,6 +4,7 @@ export type XrplEvmTransferOptions = {
 };
 
 export type XrplTransferOptions = {
+    payload?: string;
     gasFeeAmount?: string;
 };
 

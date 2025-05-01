@@ -1,4 +1,4 @@
-import { AbiCoder, Contract, ethers } from "ethers";
+import { Contract, ethers } from "ethers";
 import { convertStringToHex, Payment, SubmittableTransaction, TxResponse } from "xrpl";
 import deepmerge from "../../test/utils/utils/deepmerge";
 import { DEFAULT_BRIDGE_CONFIG } from "./config/default.config";
@@ -242,6 +242,15 @@ export class Bridge {
             },
         ];
 
+        if (options.payload) {
+            memos.push({
+                Memo: {
+                    MemoType: convertStringToHex("payload"),
+                    MemoData: options.payload,
+                },
+            });
+        }
+
         const payment: Payment = {
             TransactionType: "Payment",
             Account: this.xrpl.wallet.address,
@@ -267,7 +276,7 @@ export class Bridge {
      * @param address The contract address.
      * @returns The ethers.Contract instance.
      */
-    protected getInterchainTokenServiceContract(address: string): Contract {
+    private getInterchainTokenServiceContract(address: string): Contract {
         if (!this.evm.signer) {
             throw new XrplEvmError(XrplEvmErrorCodes.NO_EVM_SIGNER);
         }
@@ -279,25 +288,25 @@ export class Bridge {
      * @param asset The XRPL asset to transfer (native XRP or issued asset).
      * @param destinationContractAddress The contract address on the destination chain.
      * @param payload The payload to send to the destination contract.
-     * @param options Optional transfer parameters (gasFeeAmount, etc).
      * @returns A promise that resolves to an Unconfirmed<Transaction>.
      */
-    async callContractWithToken(
+    async callContract(
         asset: XrpAsset | XrplIssuedAsset,
         destinationContractAddress: string,
         payload: string,
-        options: XrplTransferOptions = {},
     ): Promise<TxResponse<SubmittableTransaction>> {
+        if (!this.xrpl.wallet) {
+            throw new BridgeError(BridgeErrorCodes.MISSING_WALLET_SECRET);
+        }
+
         const axelarGatewayAddress = this.config.xrpl.gatewayAddress;
         const destinationChainId = this.config.xrplevm.chainId;
-
-        const encodedPayload = AbiCoder.defaultAbiCoder().encode(["string"], [payload]);
 
         const memos = [
             {
                 Memo: {
                     MemoType: convertStringToHex("type"),
-                    MemoData: convertStringToHex("interchain_transfer"),
+                    MemoData: convertStringToHex("call_contract"),
                 },
             },
             {
@@ -314,28 +323,22 @@ export class Bridge {
             },
             {
                 Memo: {
-                    MemoType: convertStringToHex("gas_fee_amount"),
-                    MemoData: convertStringToHex(options.gasFeeAmount ?? this.config.xrpl.gasFeeAmount),
-                },
-            },
-            {
-                Memo: {
                     MemoType: convertStringToHex("payload"),
-                    MemoData: encodedPayload.slice(2),
+                    MemoData: payload,
                 },
             },
         ];
 
         const payment: Payment = {
             TransactionType: "Payment",
-            Account: this.xrpl.wallet!.address,
+            Account: this.xrpl.wallet.address,
             Amount: asset,
             Destination: axelarGatewayAddress,
             Memos: memos,
         };
 
         const client = this.xrpl.client;
-        const wallet = this.xrpl.wallet!;
+        const wallet = this.xrpl.wallet;
 
         if (!client.isConnected()) {
             await client.connect();
