@@ -18,14 +18,38 @@ import { translateXrpAddress } from "../chains/xrpl/translators";
 import { BridgeError, BridgeErrorCodes } from "./errors";
 
 export class Bridge {
-    private config: BridgeConfig;
-    private xrpl: XrplConnection;
-    private evm: XrplEvmConnection;
+    private _config: BridgeConfig;
+    private _xrplConnection: XrplConnection;
+    private _xrplevmConnection: XrplEvmConnection;
 
-    private constructor(cfg: BridgeConfig, xrpl: XrplConnection, evm: XrplEvmConnection) {
-        this.config = cfg;
-        this.xrpl = xrpl;
-        this.evm = evm;
+    private constructor(cfg: BridgeConfig, xrpl: XrplConnection, xrplevm: XrplEvmConnection) {
+        this._config = cfg;
+        this._xrplConnection = xrpl;
+        this._xrplevmConnection = xrplevm;
+    }
+
+    /**
+     * Get the bridge configuration.
+     * @returns The bridge configuration.
+     */
+    get config(): BridgeConfig {
+        return this._config;
+    }
+
+    /**
+     * Get the XRPL connection.
+     * @returns The XRPL connection.
+     */
+    get xrplConnection(): XrplConnection {
+        return this._xrplConnection;
+    }
+
+    /**
+     * Get the XRPL EVM connection.
+     * @returns The XRPL EVM connection.
+     */
+    get xrplevmConnection(): XrplEvmConnection {
+        return this._xrplevmConnection;
     }
 
     /**
@@ -63,7 +87,7 @@ export class Bridge {
      * @returns The asset with decimals and tokenId filled in.
      */
     private async autofillErc20Info(asset: XrplEvmAsset): Promise<XrplEvmAsset> {
-        const provider = this.evm.provider;
+        const provider = this.xrplevmConnection.provider;
         if (!provider) {
             throw new XrplEvmError(XrplEvmErrorCodes.RPC_UNAVAILABLE, { asset });
         }
@@ -209,7 +233,7 @@ export class Bridge {
         destinationAddress: string,
         options: XrplTransferOptions = {},
     ): Promise<TxResponse<SubmittableTransaction>> {
-        if (!this.xrpl.wallet) {
+        if (!this.xrplConnection.wallet) {
             throw new BridgeError(BridgeErrorCodes.MISSING_WALLET_SECRET);
         }
 
@@ -253,14 +277,14 @@ export class Bridge {
 
         const payment: Payment = {
             TransactionType: "Payment",
-            Account: this.xrpl.wallet.address,
+            Account: this.xrplConnection.wallet.address,
             Amount: asset,
             Destination: doorAddress,
             Memos: memos,
         };
 
-        const client = this.xrpl.client;
-        const wallet = this.xrpl.wallet;
+        const client = this.xrplConnection.client;
+        const wallet = this.xrplConnection.wallet;
 
         if (!client.isConnected()) {
             await client.connect();
@@ -277,10 +301,10 @@ export class Bridge {
      * @returns The ethers.Contract instance.
      */
     private getInterchainTokenServiceContract(address: string): Contract {
-        if (!this.evm.signer) {
+        if (!this.xrplevmConnection.signer) {
             throw new XrplEvmError(XrplEvmErrorCodes.NO_EVM_SIGNER);
         }
-        return new Contract(address, interchainTokenServiceAbi, this.evm.signer);
+        return new Contract(address, interchainTokenServiceAbi, this.xrplevmConnection.signer);
     }
 
     /**
@@ -295,7 +319,7 @@ export class Bridge {
         destinationContractAddress: string,
         payload: string,
     ): Promise<TxResponse<SubmittableTransaction>> {
-        if (!this.xrpl.wallet) {
+        if (!this.xrplConnection.wallet) {
             throw new BridgeError(BridgeErrorCodes.MISSING_WALLET_SECRET);
         }
 
@@ -331,14 +355,14 @@ export class Bridge {
 
         const payment: Payment = {
             TransactionType: "Payment",
-            Account: this.xrpl.wallet.address,
+            Account: this.xrplConnection.wallet.address,
             Amount: asset,
             Destination: axelarGatewayAddress,
             Memos: memos,
         };
 
-        const client = this.xrpl.client;
-        const wallet = this.xrpl.wallet;
+        const client = this.xrplConnection.client;
+        const wallet = this.xrplConnection.wallet;
 
         if (!client.isConnected()) {
             await client.connect();

@@ -9,7 +9,7 @@ Cross-chain SDK to enable developers to bridge assets between XRPL and the XRPL 
 -   [Core API](#core-api)
     -   [`Bridge.fromConfig(network, overrides)`](#bridgefromconfignetwork-overrides)
     -   [`bridge.transfer(asset, amount, options?)`](#bridgetransferasset-amount-options)
-    -   [`bridge.callContractWithToken(...)`](#bridgecallcontractwithtoken)
+    -   [`bridge.callContract(asset, destinationContractAddress, payload)`](#bridgecallcontractasset-destinationcontractaddress-payload)
 -   [Configuration](#configuration)
     -   [Configuration Structure](#configuration-structure)
     -   [Required Secrets](#required-secrets)
@@ -40,6 +40,8 @@ yarn add @xrplevm/xchain-sdk
 -   TypeScript support
 
 ## Core API
+
+The `Bridge` class is the main entry point for interacting with the SDK. It encapsulates the logic for cross-chain operations between XRPL and the XRPL EVM sidechain. You typically create an instance of this class using the static `fromConfig` method, providing network details and any necessary overrides.
 
 ### `Bridge.fromConfig(network, overrides)`
 
@@ -86,11 +88,15 @@ bridge.transfer(
 );
 ```
 
-### `bridge.callContractWithToken(...)`
+### `bridge.callContract(asset, destinationContractAddress, payload)`
 
-Execute a contract call on the destination chain with an asset transfer (GMP).
+Execute a smart contract function on the EVM sidechain, initiated from XRPL, along with transferring an XRPL asset (either native XRP or an issued asset). This allows for more complex cross-chain interactions beyond simple transfers.
 
-Refer to the generated TypeScript definitions for full signatures and return types.
+-   `asset`: The `XrpAsset` or `XrplIssuedAsset` to be transferred from XRPL.
+-   `destinationContractAddress`: The address of the smart contract on the EVM sidechain to call.
+-   `payload`: Hex-encoded data representing the function call and its arguments for the destination contract.
+
+Refer to the `Bridge` class source code ([`src/bridge/bridge.ts`](src/bridge/bridge.ts)) for the exact method signature and return types.
 
 ## Configuration
 
